@@ -2,27 +2,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import {
-  LayoutDashboard, Briefcase, Bookmark, CalendarDays,
-  Ticket, Coins, CheckSquare, BookOpen, Route, Sparkles, LogOut,
-} from 'lucide-react'
+import { LayoutDashboard, Briefcase, Bookmark, Sparkles, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const navItems = [
-  { href: '/dashboard',   label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/viajes',      label: 'Mis viajes',   icon: Briefcase },
-  { href: '/biblioteca',  label: 'Biblioteca',   icon: Bookmark },
-]
-const planItems = [
-  { href: '/itinerarios', label: 'Itinerarios',  icon: CalendarDays },
-  { href: '/reservas',    label: 'Reservas',     icon: Ticket },
-  { href: '/gastos',      label: 'Gastos',       icon: Coins },
-  { href: '/checklist',   label: 'Checklists',   icon: CheckSquare },
-  { href: '/diario',      label: 'Diario',       icon: BookOpen },
-]
-const exploreItems = [
-  { href: '/road-trip',   label: 'Road trips',   icon: Route },
-  { href: '/ia',          label: 'Asistente IA', icon: Sparkles },
+  { href: '/dashboard',  label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/viajes',     label: 'Mis viajes',    icon: Briefcase },
+  { href: '/biblioteca', label: 'Biblioteca',    icon: Bookmark },
+  { href: '/ia',         label: 'Asistente IA',  icon: Sparkles },
 ]
 
 interface SidebarProps { userName?: string }
@@ -63,10 +50,6 @@ export default function Sidebar({ userName }: SidebarProps) {
 
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map(item => <NavItem key={item.href} {...item} />)}
-        <p className="text-[9px] tracking-[2.5px] text-white/20 uppercase px-3 pt-4 pb-1.5">Planificación</p>
-        {planItems.map(item => <NavItem key={item.href} {...item} />)}
-        <p className="text-[9px] tracking-[2.5px] text-white/20 uppercase px-3 pt-4 pb-1.5">Explorar</p>
-        {exploreItems.map(item => <NavItem key={item.href} {...item} />)}
       </nav>
 
       <div className="p-3 border-t border-white/8">
@@ -85,3 +68,4 @@ export default function Sidebar({ userName }: SidebarProps) {
     </aside>
   )
 }
+
