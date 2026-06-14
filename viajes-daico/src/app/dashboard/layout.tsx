@@ -7,15 +7,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  let userName = user.email?.split('@')[0] ?? 'Usuario'
+  
+  const { data } = await supabase
     .from('profiles')
     .select('nombre')
     .eq('id', user.id)
     .maybeSingle()
+  
+  if (data && 'nombre' in data && data.nombre) {
+    userName = data.nombre
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar userName={profile?.nombre ?? user.email?.split('@')[0]} />
+      <Sidebar userName={userName} />
       <main className="flex-1 overflow-y-auto bg-nude-100">
         {children}
       </main>
