@@ -1,16 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, CalendarDays, Ticket, Coins, CheckSquare, BookOpen } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { ArrowLeft, CalendarDays, Ticket, Coins, CheckSquare, BookOpen, Route, LayoutDashboard } from 'lucide-react'
 import { formatFecha, duracionViaje } from '@/lib/utils'
 
 const TABS = [
-  { key: 'resumen',     label: 'Resumen',     icon: CalendarDays, href: '' },
-  { key: 'itinerario',  label: 'Itinerario',  icon: CalendarDays, href: '/itinerario' },
-  { key: 'reservas',    label: 'Reservas',    icon: Ticket,       href: '/reservas' },
-  { key: 'gastos',      label: 'Gastos',      icon: Coins,        href: '/gastos' },
-  { key: 'checklist',   label: 'Checklist',   icon: CheckSquare,  href: '/checklist' },
-  { key: 'diario',      label: 'Diario',      icon: BookOpen,     href: '/diario' },
+  { key: 'resumen',    label: 'Resumen',    href: '' },
+  { key: 'itinerario', label: 'Itinerario', href: '/itinerario' },
+  { key: 'road-trip',  label: 'Road trip',  href: '/road-trip' },
+  { key: 'reservas',   label: 'Reservas',   href: '/reservas' },
+  { key: 'gastos',     label: 'Gastos',     href: '/gastos' },
+  { key: 'checklist',  label: 'Checklist',  href: '/checklist' },
+  { key: 'diario',     label: 'Diario',     href: '/diario' },
 ]
 
 export default async function ViajeLayout({
@@ -32,8 +34,8 @@ export default async function ViajeLayout({
   return (
     <div className="min-h-full">
       <div className="bg-nude-50 border-b border-nude-300 px-8 pt-6 pb-0">
-        <Link href="/viajes" className="btn-ghost mb-4 inline-flex text-nude-600">
-          <ArrowLeft size={14} /> Mis viajes
+        <Link href="/viajes" className="inline-flex items-center gap-1.5 text-xs text-nude-500 hover:text-nude-800 mb-4 transition-colors">
+          <ArrowLeft size={13} /> Mis viajes
         </Link>
         <div className="flex items-start justify-between mb-5">
           <div>
@@ -51,13 +53,12 @@ export default async function ViajeLayout({
              viaje.estado === 'en_curso'     ? 'En curso' : 'Completado'}
           </span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {TABS.map(tab => {
             const href = `/viajes/${id}${tab.href}`
             return (
               <Link key={tab.key} href={href}
-                className="tab flex items-center gap-1.5 text-sm">
-                <tab.icon size={14} />
+                className="tab flex items-center gap-1.5 text-sm whitespace-nowrap">
                 {tab.label}
               </Link>
             )
@@ -68,3 +69,4 @@ export default async function ViajeLayout({
     </div>
   )
 }
+
