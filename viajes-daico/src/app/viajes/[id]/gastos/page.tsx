@@ -6,14 +6,17 @@ import { formatMonto, CATEGORIAS_GASTO, formatFecha } from '@/lib/utils'
 import type { Gasto } from '@/types'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 
+type GastoConTipo = Gasto & { tipo: 'estimado' | 'real' }
+
 export default function GastosPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = createClient()
   const [viajeId, setViajeId] = useState('')
-  const [gastos, setGastos] = useState<Gasto[]>([])
+  const [gastos, setGastos] = useState<GastoConTipo[]>([])
   const [viaje, setViaje] = useState<{ presupuesto: number | null; moneda: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ descripcion: '', monto: '', categoria: 'comida', fecha: new Date().toISOString().split('T')[0] })
+  const [tab, setTab] = useState<'todos' | 'estimado' | 'real'>('todos')
+  const [form, setForm] = useState({ descripcion: '', monto: '', categoria: 'comida', fecha: new Date().toISOString().split('T')[0], tipo: 'real' })
 
   useEffect(() => {
     params.then(p => { setViajeId(p.id); load(p.id) })
@@ -25,7 +28,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
       supabase.from('gastos').select('*').eq('viaje_id', id).order('fecha', { ascending: false }),
       supabase.from('viajes').select('presupuesto,moneda').eq('id', id).single(),
     ])
-    setGastos(g ?? [])
+    setGastos((g ?? []) as GastoConTipo[])
     setViaje(v)
     setLoading(false)
   }
@@ -41,8 +44,13 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
       categoria: form.categoria as Gasto['categoria'],
       fecha: form.fecha,
       moneda: viaje?.moneda ?? 'USD',
-    }).select().single()
-    if (data) { setGastos(g => [data, ...g]); setShowForm(false); setForm({ descripcion: '', monto: '', categoria: 'comida', fecha: new Date().toISOString().split('T')[0] }) }
+      tipo: form.tipo,
+    } as any).select().single()
+    if (data) {
+      setGastos(g => [data as GastoConTipo, ...g])
+      setShowForm(false)
+      setForm({ descripcion: '', monto: '', categoria: 'comida', fecha: new Date().toISOString().split('T')[0], tipo: 'real' })
+    }
   }
 
   async function deleteGasto(id: string) {
@@ -50,13 +58,15 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
     setGastos(g => g.filter(x => x.id !== id))
   }
 
-  const totalGastado = gastos.reduce((a, g) => a + g.monto, 0)
+  const gastosFiltrados = tab === 'todos' ? gastos : gastos.filter(g => (g as any).tipo === tab)
+  const totalEstimado = gastos.filter(g => (g as any).tipo === 'estimado').reduce((a, g) => a + g.monto, 0)
+  const totalReal = gastos.filter(g => (g as any).tipo === 'real').reduce((a, g) => a + g.monto, 0)
   const presupuesto = viaje?.presupuesto ?? 0
   const moneda = viaje?.moneda ?? 'USD'
 
   const pieData = CATEGORIAS_GASTO.map(cat => ({
     name: cat.label,
-    value: gastos.filter(g => g.categoria === cat.value).reduce((a, g) => a + g.monto, 0),
+    value: gastosFiltrados.filter(g => g.categoria === cat.value).reduce((a, g) => a + g.monto, 0),
     color: cat.color,
   })).filter(d => d.value > 0)
 
@@ -64,20 +74,37 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="max-w-4xl space-y-5">
+      <div className="grid grid-cols-4 gap-4">
+        <div className="card">
+          <p className="text-xs text-nude-500 mb-0.5">Presupuesto</p>
+          <p className="text-xl font-medium text-nude-900">{presupuesto ? formatMonto(presupuesto, moneda) : '—'}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-nude-500 mb-0.5">Estimado</p>
+          <p className="text-xl font-medium text-nude-700">{formatMonto(totalEstimado, moneda)}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-nude-500 mb-0.5">Gastado real</p>
+          <p className="text-xl font-medium text-nude-900">{formatMonto(totalReal, moneda)}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs text-nude-500 mb-0.5">Diferencia</p>
+          <p className={`text-xl font-medium ${totalEstimado - totalReal < 0 ? 'text-red-600' : 'text-green-700'}`}>
+            {formatMonto(totalEstimado - totalReal, moneda)}
+          </p>
+        </div>
+      </div>
+
       <div className="flex items-center justify-between">
-        <div className="grid grid-cols-3 gap-4 flex-1">
-          {[
-            { label: 'Presupuesto', value: presupuesto ? formatMonto(presupuesto, moneda) : '—' },
-            { label: 'Gastado',     value: formatMonto(totalGastado, moneda) },
-            { label: 'Disponible',  value: presupuesto ? formatMonto(presupuesto - totalGastado, moneda) : '—' },
-          ].map(({ label, value }) => (
-            <div key={label} className="card">
-              <p className="text-xs text-nude-500 mb-0.5">{label}</p>
-              <p className="text-xl font-medium text-nude-900">{value}</p>
-            </div>
+        <div className="flex gap-1 border border-nude-300 rounded-lg p-1">
+          {(['todos', 'estimado', 'real'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-3 py-1 rounded text-xs font-medium transition-all ${tab === t ? 'bg-accent text-white' : 'text-nude-600 hover:bg-nude-200'}`}>
+              {t === 'todos' ? 'Todos' : t === 'estimado' ? '📋 Estimados' : '✅ Reales'}
+            </button>
           ))}
         </div>
-        <button onClick={() => setShowForm(s => !s)} className="btn-primary ml-4">
+        <button onClick={() => setShowForm(s => !s)} className="btn-primary">
           <Plus size={15} /> Agregar gasto
         </button>
       </div>
@@ -88,13 +115,20 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
           <form onSubmit={addGasto} className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="label">Descripción *</label>
-              <input className="input" placeholder="Ej: Cena en restaurante"
+              <input className="input" placeholder="Ej: Hotel en Roma"
                 value={form.descripcion} onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))} required />
             </div>
             <div>
               <label className="label">Monto *</label>
               <input className="input" type="number" step="0.01" placeholder="0.00"
                 value={form.monto} onChange={e => setForm(f => ({ ...f, monto: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="label">Tipo</label>
+              <select className="select" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))}>
+                <option value="estimado">📋 Estimado (planificado)</option>
+                <option value="real">✅ Real (ya pagado)</option>
+              </select>
             </div>
             <div>
               <label className="label">Categoría</label>
@@ -106,7 +140,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
               <label className="label">Fecha</label>
               <input className="input" type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))} />
             </div>
-            <div className="flex items-end gap-3">
+            <div className="col-span-2 flex gap-3">
               <button type="submit" className="btn-primary flex-1 justify-center">Guardar</button>
               <button type="button" onClick={() => setShowForm(false)} className="btn-secondary px-4">Cancelar</button>
             </div>
@@ -131,16 +165,24 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
         )}
 
         <div className="card">
-          <h3 className="text-sm font-medium text-nude-900 mb-3">Últimos gastos</h3>
+          <h3 className="text-sm font-medium text-nude-900 mb-3">
+            {tab === 'todos' ? 'Todos los gastos' : tab === 'estimado' ? 'Gastos estimados' : 'Gastos reales'}
+          </h3>
           <div className="space-y-1">
-            {gastos.length === 0 && <p className="text-nude-500 text-sm">Sin gastos aún</p>}
-            {gastos.slice(0, 8).map(gasto => {
+            {gastosFiltrados.length === 0 && <p className="text-nude-500 text-sm">Sin gastos en esta categoría</p>}
+            {gastosFiltrados.slice(0, 8).map(gasto => {
               const cat = CATEGORIAS_GASTO.find(c => c.value === gasto.categoria)
+              const tipo = (gasto as any).tipo
               return (
                 <div key={gasto.id} className="flex items-center gap-3 py-2 border-b border-nude-200 last:border-0">
                   <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat?.color }} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-nude-900 truncate">{gasto.descripcion}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-medium text-nude-900 truncate">{gasto.descripcion}</p>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${tipo === 'estimado' ? 'bg-nude-200 text-nude-600' : 'bg-green-100 text-green-700'}`}>
+                        {tipo === 'estimado' ? 'Est.' : 'Real'}
+                      </span>
+                    </div>
                     <p className="text-[10px] text-nude-400">{formatFecha(gasto.fecha)}</p>
                   </div>
                   <p className="text-xs font-medium text-nude-900">{formatMonto(gasto.monto, moneda)}</p>
