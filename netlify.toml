@@ -1,6 +1,6 @@
 [build]
   base = "viajes-daico"
-  command = "npm run build"
+  command = "npm install next@latest && npm run build"
   publish = ".next"
 
 [[plugins]]
