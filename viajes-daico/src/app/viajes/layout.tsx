@@ -6,7 +6,7 @@ export default async function ViajesLayout({ children }: { children: React.React
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-  const { data: profile } = await supabase.from('profiles').select('nombre').eq('id', user.id).single()
+  const { data: profile } = await supabase.from('profiles').select('nombre').eq('id', user.id).maybeSingle()
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar userName={profile?.nombre ?? user.email?.split('@')[0]} />
