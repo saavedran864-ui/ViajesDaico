@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Ticket, Coins, CheckSquare, BookOpen, Route, LayoutDashboard } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { formatFecha, duracionViaje } from '@/lib/utils'
 
 const TABS = [
@@ -54,19 +53,15 @@ export default async function ViajeLayout({
           </span>
         </div>
         <div className="flex gap-1 overflow-x-auto">
-          {TABS.map(tab => {
-            const href = `/viajes/${id}${tab.href}`
-            return (
-              <Link key={tab.key} href={href}
-                className="tab flex items-center gap-1.5 text-sm whitespace-nowrap">
-                {tab.label}
-              </Link>
-            )
-          })}
+          {TABS.map(tab => (
+            <Link key={tab.key} href={`/viajes/${id}${tab.href}`}
+              className="tab flex items-center gap-1.5 text-sm whitespace-nowrap">
+              {tab.label}
+            </Link>
+          ))}
         </div>
       </div>
       <div className="p-8">{children}</div>
     </div>
   )
 }
-
