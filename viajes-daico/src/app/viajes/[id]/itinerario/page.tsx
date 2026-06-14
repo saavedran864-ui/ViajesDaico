@@ -9,6 +9,12 @@ interface Recomendacion {
   id: string; dia_id: string; nombre: string; tipo: string; ubicacion: string | null; notas: string | null
 }
 
+interface DiaConTitulo extends Dia {
+  titulo: string | null
+  actividades: Actividad[]
+  recomendaciones: Recomendacion[]
+}
+
 declare global { interface Window { google: any; initMap: () => void } }
 
 const TIPOS_RECO = [
@@ -33,7 +39,7 @@ function UbicacionInput({ value, onChange, placeholder = 'Ej: Coliseo, Roma' }: 
       if (place?.formatted_address) onChange(place.formatted_address)
       else if (place?.name) onChange(place.name)
     })
-  }, [window.google])
+  }, [])
 
   return (
     <input ref={inputRef} className="input" placeholder={placeholder}
@@ -44,7 +50,7 @@ function UbicacionInput({ value, onChange, placeholder = 'Ej: Coliseo, Roma' }: 
 export default function ItinerarioPage({ params }: { params: Promise<{ id: string }> }) {
   const supabase = createClient()
   const [viajeId, setViajeId] = useState('')
-  const [dias, setDias] = useState<(Dia & { actividades: Actividad[]; recomendaciones: Recomendacion[] })[]>([])
+  const [dias, setDias] = useState<DiaConTitulo[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<Record<string, 'actividades' | 'recomendaciones'>>({})
@@ -54,6 +60,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
   const [editingAct, setEditingAct] = useState<string | null>(null)
   const [editingDia, setEditingDia] = useState<string | null>(null)
   const [editDiaFecha, setEditDiaFecha] = useState('')
+  const [editDiaTitulo, setEditDiaTitulo] = useState('')
   const [actForm, setActForm] = useState({ nombre: '', hora: '', ubicacion: '', categoria: 'atraccion', notas: '' })
   const [editActForm, setEditActForm] = useState({ nombre: '', hora: '', ubicacion: '', categoria: 'atraccion', notas: '' })
   const [recoForm, setRecoForm] = useState({ nombre: '', tipo: 'restaurante', ubicacion: '', notas: '' })
@@ -67,7 +74,8 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-    if (!apiKey || window.google) { setMapsLoaded(true); return }
+    if (!apiKey) return
+    if (window.google) { setMapsLoaded(true); return }
     window.initMap = () => setMapsLoaded(true)
     const script = document.createElement('script')
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initMap`
@@ -83,6 +91,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
     const { data: recos } = await supabase.from('recomendaciones').select('*').in('dia_id', (diasData ?? []).map(d => d.id))
     const diasConTodo = (diasData ?? []).map(d => ({
       ...d,
+      titulo: d.titulo ?? null,
       actividades: (acts ?? []).filter(a => a.dia_id === d.id),
       recomendaciones: (recos ?? []).filter((r: Recomendacion) => r.dia_id === d.id),
     }))
@@ -136,7 +145,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
     if (!viajeId || !newDiaFecha) return
     const { data } = await supabase.from('dias').insert({ viaje_id: viajeId, fecha: newDiaFecha, orden: dias.length }).select().single()
     if (data) {
-      setDias(d => [...d, { ...data, actividades: [], recomendaciones: [] }].sort((a, b) => a.fecha.localeCompare(b.fecha)))
+      setDias(d => [...d, { ...data, titulo: null, actividades: [], recomendaciones: [] }].sort((a, b) => a.fecha.localeCompare(b.fecha)))
       setExpanded(e => ({ ...e, [data.id]: true }))
       setActiveTab(t => ({ ...t, [data.id]: 'actividades' }))
       setShowDiaForm(false); setNewDiaFecha('')
@@ -145,8 +154,8 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
 
   async function saveDiaFecha(diaId: string) {
     if (!editDiaFecha) return
-    await supabase.from('dias').update({ fecha: editDiaFecha }).eq('id', diaId)
-    setDias(ds => ds.map(d => d.id === diaId ? { ...d, fecha: editDiaFecha } : d).sort((a, b) => a.fecha.localeCompare(b.fecha)))
+    await supabase.from('dias').update({ fecha: editDiaFecha, titulo: editDiaTitulo || null }).eq('id', diaId)
+    setDias(ds => ds.map(d => d.id === diaId ? { ...d, fecha: editDiaFecha, titulo: editDiaTitulo || null } : d).sort((a, b) => a.fecha.localeCompare(b.fecha)))
     setEditingDia(null)
   }
 
@@ -252,20 +261,30 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
             </div>
             <div className="flex-1 cursor-pointer" onClick={() => !editingDia && setExpanded(e => ({ ...e, [dia.id]: !e[dia.id] }))}>
               {editingDia === dia.id ? (
-                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                  <input className="input py-1 text-xs" type="date" value={editDiaFecha} onChange={e => setEditDiaFecha(e.target.value)} />
-                  <button onClick={() => saveDiaFecha(dia.id)} className="text-[#7C3AED]"><Check size={14} /></button>
-                  <button onClick={() => setEditingDia(null)} className="text-[#9CA3AF]"><X size={14} /></button>
+                <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                  <input className="input py-1 text-xs" type="date" value={editDiaFecha}
+                    onChange={e => setEditDiaFecha(e.target.value)} />
+                  <input className="input py-1 text-xs" placeholder="Nombre del dia (ej: Barcelona a Roma)"
+                    value={editDiaTitulo} onChange={e => setEditDiaTitulo(e.target.value)} />
+                  <div className="flex gap-2">
+                    <button onClick={() => saveDiaFecha(dia.id)} className="text-[#7C3AED] hover:text-[#6D28D9]"><Check size={14} /></button>
+                    <button onClick={() => setEditingDia(null)} className="text-[#9CA3AF]"><X size={14} /></button>
+                  </div>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-[#1A1D23]">{formatFecha(dia.fecha, "EEEE d 'de' MMMM")}</p>
-                  <p className="text-xs text-[#6B7280]">{dia.actividades.length} actividades · {dia.recomendaciones.length} recomendaciones</p>
+                  <p className="text-sm font-medium text-[#1A1D23]">
+                    {dia.titulo || formatFecha(dia.fecha, "EEEE d 'de' MMMM")}
+                  </p>
+                  <p className="text-xs text-[#6B7280]">
+                    {dia.titulo ? formatFecha(dia.fecha, "d 'de' MMMM") + ' · ' : ''}{dia.actividades.length} actividades · {dia.recomendaciones.length} recomendaciones
+                  </p>
                 </>
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => { setEditingDia(dia.id); setEditDiaFecha(dia.fecha) }} className="text-[#9CA3AF] hover:text-[#7C3AED] p-1"><Pencil size={12} /></button>
+              <button onClick={() => { setEditingDia(dia.id); setEditDiaFecha(dia.fecha); setEditDiaTitulo(dia.titulo ?? '') }}
+                className="text-[#9CA3AF] hover:text-[#7C3AED] p-1"><Pencil size={12} /></button>
               <button onClick={() => deleteDia(dia.id)} className="text-[#9CA3AF] hover:text-red-500 p-1"><Trash2 size={13} /></button>
               {expanded[dia.id] ? <ChevronDown size={15} className="text-[#9CA3AF]" /> : <ChevronRight size={15} className="text-[#9CA3AF]" />}
             </div>
