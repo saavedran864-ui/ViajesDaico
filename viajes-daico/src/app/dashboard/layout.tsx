@@ -15,9 +15,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq('id', user.id)
     .maybeSingle()
   
-  if (data && 'nombre' in data && data.nombre) {
-    userName = data.nombre
-  }
+  const profile = data as { nombre: string | null } | null
+  if (profile?.nombre) userName = profile.nombre
 
   return (
     <div className="flex h-screen overflow-hidden">
