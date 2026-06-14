@@ -1,6 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Plus, Trash2, MapPin, Clock, Fuel, Navigation } from 'lucide-react'
+
+declare global { interface Window { google: any; initRoadMap: () => void } }
 
 interface Parada {
   id: string
@@ -9,21 +11,60 @@ interface Parada {
   tiempo_min: number | null
 }
 
-export default function RoadTripPage({ params }: { params: Promise<{ id: string }> }) {
+export default function RoadTripPage() {
   const [paradas, setParadas] = useState<Parada[]>([
     { id: '1', nombre: '', distancia_km: null, tiempo_min: null },
     { id: '2', nombre: '', distancia_km: null, tiempo_min: null },
   ])
   const [consumo, setConsumo] = useState('8')
   const [precioCombustible, setPrecioCombustible] = useState('1.5')
+  const [calculando, setCalculando] = useState(false)
   const [calculado, setCalculado] = useState(false)
+  const [mapsLoaded, setMapsLoaded] = useState(false)
+  const mapRef = useRef<HTMLDivElement>(null)
+  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const autocompletes = useRef<Record<string, any>>({})
+
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+    if (!apiKey) return
+    if (window.google) { setMapsLoaded(true); return }
+    window.initRoadMap = () => setMapsLoaded(true)
+    const existing = document.querySelector('script[src*="maps.googleapis.com"]')
+    if (!existing) {
+      const script = document.createElement('script')
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initRoadMap`
+      script.async = true
+      document.head.appendChild(script)
+    } else {
+      if (window.google) setMapsLoaded(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!mapsLoaded) return
+    paradas.forEach(parada => {
+      const input = inputRefs.current[parada.id]
+      if (!input || autocompletes.current[parada.id]) return
+      const ac = new window.google.maps.places.Autocomplete(input, { types: ['geocode', 'establishment'] })
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace()
+        const nombre = place?.formatted_address || place?.name || ''
+        setParadas(p => p.map(x => x.id === parada.id ? { ...x, nombre } : x))
+        setCalculado(false)
+      })
+      autocompletes.current[parada.id] = ac
+    })
+  }, [mapsLoaded, paradas.length])
 
   function addParada() {
-    setParadas(p => [...p, { id: Date.now().toString(), nombre: '', distancia_km: null, tiempo_min: null }])
+    const nueva = { id: Date.now().toString(), nombre: '', distancia_km: null, tiempo_min: null }
+    setParadas(p => { const arr = [...p]; arr.splice(arr.length - 1, 0, nueva); return arr })
   }
 
   function removeParada(id: string) {
     if (paradas.length <= 2) return
+    delete autocompletes.current[id]
     setParadas(p => p.filter(x => x.id !== id))
   }
 
@@ -32,16 +73,39 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
     setCalculado(false)
   }
 
-  function updateDistancia(id: string, val: string) {
-    setParadas(p => p.map(x => x.id === id ? { ...x, distancia_km: val ? parseFloat(val) : null } : x))
-  }
-
-  function updateTiempo(id: string, val: string) {
-    setParadas(p => p.map(x => x.id === id ? { ...x, tiempo_min: val ? parseInt(val) : null } : x))
-  }
-
-  function calcular() {
-    setCalculado(true)
+  async function calcular() {
+    const lugares = paradas.map(p => p.nombre).filter(Boolean)
+    if (lugares.length < 2 || !window.google) return
+    setCalculando(true)
+    const service = new window.google.maps.DirectionsService()
+    const waypoints = lugares.slice(1, -1).map((loc: string) => ({ location: loc, stopover: true }))
+    service.route({
+      origin: lugares[0],
+      destination: lugares[lugares.length - 1],
+      waypoints,
+      travelMode: window.google.maps.TravelMode.DRIVING,
+    }, (result: any, status: any) => {
+      if (status === 'OK') {
+        const legs = result.routes[0].legs
+        const nuevasParadas = [...paradas]
+        legs.forEach((leg: any, idx: number) => {
+          nuevasParadas[idx + 1] = {
+            ...nuevasParadas[idx + 1],
+            distancia_km: Math.round(leg.distance.value / 1000),
+            tiempo_min: Math.round(leg.duration.value / 60),
+          }
+        })
+        setParadas(nuevasParadas)
+        setCalculado(true)
+        if (mapRef.current) {
+          const map = new window.google.maps.Map(mapRef.current, { mapTypeControl: false, streetViewControl: false })
+          const renderer = new window.google.maps.DirectionsRenderer()
+          renderer.setMap(map)
+          renderer.setDirections(result)
+        }
+      }
+      setCalculando(false)
+    })
   }
 
   function abrirEnMaps() {
@@ -67,56 +131,60 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
     <div className="max-w-2xl space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-serif font-normal text-nude-900">Road Trip Planner</h2>
-          <p className="text-nude-500 text-sm mt-1">Ingresá las paradas y calculá distancias y costos</p>
+          <h2 className="text-xl font-semibold text-[#1A1D23]">Road Trip Planner</h2>
+          <p className="text-[#6B7280] text-sm mt-1">Ingresa las paradas y calculamos distancias automaticamente</p>
         </div>
-        <button onClick={abrirEnMaps} className="btn-secondary flex items-center gap-2">
-          <Navigation size={14} /> Abrir en Maps
-        </button>
+        <button onClick={abrirEnMaps} className="btn-secondary"><Navigation size={14} /> Abrir en Maps</button>
       </div>
 
       <div className="card space-y-3">
-        <h3 className="text-sm font-medium text-nude-900 mb-1">Paradas del recorrido</h3>
+        <h3 className="text-sm font-medium text-[#1A1D23] mb-2">Paradas del recorrido</h3>
         {paradas.map((parada, idx) => (
-          <div key={parada.id} className="flex items-center gap-3">
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+          <div key={parada.id} className="flex items-start gap-3">
+            <div className="flex flex-col items-center gap-0.5 shrink-0 w-6 pt-2">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                 idx === 0 ? 'bg-green-100 text-green-700' :
                 idx === paradas.length - 1 ? 'bg-red-100 text-red-700' :
-                'bg-nude-200 text-nude-600'
+                'bg-[#EDE9FE] text-[#7C3AED]'
               }`}>
-                {idx === 0 ? '●' : idx === paradas.length - 1 ? '■' : idx}
+                {idx === 0 ? 'A' : idx === paradas.length - 1 ? 'B' : idx}
               </div>
-              {idx < paradas.length - 1 && <div className="w-0.5 h-3 bg-nude-300" />}
+              {idx < paradas.length - 1 && <div className="w-px h-6 bg-[#E8E9EC] mt-1" />}
             </div>
-            <div className="flex-1 grid grid-cols-3 gap-2">
-              <input className="input col-span-1" placeholder={idx === 0 ? 'Origen' : idx === paradas.length - 1 ? 'Destino' : `Parada ${idx}`}
-                value={parada.nombre} onChange={e => updateNombre(parada.id, e.target.value)} />
-              {idx > 0 && (
-                <>
-                  <input className="input" type="number" placeholder="km"
-                    value={parada.distancia_km ?? ''} onChange={e => updateDistancia(parada.id, e.target.value)} />
-                  <input className="input" type="number" placeholder="min"
-                    value={parada.tiempo_min ?? ''} onChange={e => updateTiempo(parada.id, e.target.value)} />
-                </>
+            <div className="flex-1 space-y-1.5">
+              <input
+                ref={el => { inputRefs.current[parada.id] = el }}
+                className="input"
+                placeholder={idx === 0 ? 'Ciudad de origen' : idx === paradas.length - 1 ? 'Ciudad de destino' : `Parada ${idx}`}
+                value={parada.nombre}
+                onChange={e => updateNombre(parada.id, e.target.value)}
+              />
+              {idx > 0 && parada.distancia_km !== null && (
+                <div className="flex gap-2">
+                  <span className="flex items-center gap-1 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-2.5 py-1">
+                    <MapPin size={10} className="text-[#7C3AED]" /> {parada.distancia_km} km
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-2.5 py-1">
+                    <Clock size={10} className="text-[#7C3AED]" /> {Math.floor((parada.tiempo_min ?? 0) / 60)}h {(parada.tiempo_min ?? 0) % 60}m
+                  </span>
+                </div>
               )}
-              {idx === 0 && <div className="col-span-2 flex items-center text-xs text-nude-400 pl-2">distancia (km) · tiempo (min)</div>}
             </div>
             {paradas.length > 2 && idx > 0 && idx < paradas.length - 1 && (
-              <button onClick={() => removeParada(parada.id)} className="text-nude-400 hover:text-red-500 transition-colors shrink-0">
+              <button onClick={() => removeParada(parada.id)} className="text-[#9CA3AF] hover:text-red-500 transition-colors pt-2">
                 <Trash2 size={13} />
               </button>
             )}
           </div>
         ))}
-        <button onClick={addParada} className="flex items-center gap-2 text-xs text-nude-400 hover:text-accent transition-colors">
+        <button onClick={addParada} className="flex items-center gap-2 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors mt-1">
           <Plus size={13} /> Agregar parada intermedia
         </button>
       </div>
 
       <div className="card">
-        <h3 className="text-sm font-medium text-nude-900 mb-3">Datos del vehículo</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <h3 className="text-sm font-medium text-[#1A1D23] mb-3">Datos del vehiculo</h3>
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="label">Consumo (litros/100km)</label>
             <input className="input" type="number" step="0.1" value={consumo} onChange={e => setConsumo(e.target.value)} />
@@ -126,27 +194,34 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
             <input className="input" type="number" step="0.01" value={precioCombustible} onChange={e => setPrecioCombustible(e.target.value)} />
           </div>
         </div>
-        <button onClick={calcular} className="btn-primary mt-4">Calcular</button>
+        <button onClick={calcular} disabled={calculando} className="btn-primary">
+          {calculando ? 'Calculando...' : 'Calcular ruta'}
+        </button>
       </div>
 
-      {calculado && totalKm > 0 && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="card text-center">
-            <MapPin size={18} className="text-accent mx-auto mb-2" />
-            <p className="text-xl font-medium text-nude-900">{totalKm.toFixed(0)} km</p>
-            <p className="text-xs text-nude-500 mt-1">Distancia total</p>
+      {calculado && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="card text-center">
+              <MapPin size={18} className="text-[#7C3AED] mx-auto mb-2" />
+              <p className="text-xl font-semibold text-[#1A1D23]">{totalKm} km</p>
+              <p className="text-xs text-[#6B7280] mt-1">Distancia total</p>
+            </div>
+            <div className="card text-center">
+              <Clock size={18} className="text-[#7C3AED] mx-auto mb-2" />
+              <p className="text-xl font-semibold text-[#1A1D23]">{horas}h {minutos}m</p>
+              <p className="text-xs text-[#6B7280] mt-1">Tiempo estimado</p>
+            </div>
+            <div className="card text-center">
+              <Fuel size={18} className="text-[#7C3AED] mx-auto mb-2" />
+              <p className="text-xl font-semibold text-[#1A1D23]">${costoCombustible.toFixed(2)}</p>
+              <p className="text-xs text-[#6B7280] mt-1">{litros.toFixed(1)}L combustible</p>
+            </div>
           </div>
-          <div className="card text-center">
-            <Clock size={18} className="text-accent mx-auto mb-2" />
-            <p className="text-xl font-medium text-nude-900">{horas}h {minutos}m</p>
-            <p className="text-xs text-nude-500 mt-1">Tiempo estimado</p>
+          <div className="card p-0 overflow-hidden">
+            <div ref={mapRef} className="w-full h-64" />
           </div>
-          <div className="card text-center">
-            <Fuel size={18} className="text-accent mx-auto mb-2" />
-            <p className="text-xl font-medium text-nude-900">${costoCombustible.toFixed(2)}</p>
-            <p className="text-xs text-nude-500 mt-1">{litros.toFixed(1)}L combustible</p>
-          </div>
-        </div>
+        </>
       )}
     </div>
   )
