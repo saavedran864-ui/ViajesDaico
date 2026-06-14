@@ -2,74 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap');
+
 :root {
-  --nude-50:  #FAF8F5;
-  --nude-100: #F7F3EE;
-  --nude-200: #EDE8E0;
-  --nude-300: #E0D9CF;
-  --nude-400: #D6CFC4;
-  --nude-500: #C9BFB0;
-  --nude-600: #9C8E82;
-  --nude-700: #6B5F54;
-  --nude-800: #3D3028;
-  --nude-900: #2C2420;
-  --accent:   #B8956A;
-  --accent-l: #F0E8DC;
-  --sidebar:  #2C2420;
+  --navy:    #1B2B6B;
+  --cream:   #F5E6C8;
+  --coral:   #E8453C;
+  --sky:     #4ABDE8;
+  --white:   #FFFDF7;
 }
 
 * { box-sizing: border-box; }
 
 body {
-  background-color: var(--nude-100);
-  color: var(--nude-900);
-  font-family: system-ui, -apple-system, sans-serif;
+  background-color: var(--cream);
+  color: var(--navy);
+  font-family: 'Barlow', system-ui, sans-serif;
+}
+
+h1, h2, h3, .display {
+  font-family: 'Barlow Condensed', Impact, sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-accent text-nude-50 px-4 py-2 rounded-lg text-sm font-medium
-           hover:bg-accent-dark transition-colors flex items-center gap-2;
+    @apply bg-coral text-white px-4 py-2 rounded-lg text-sm font-semibold
+           hover:bg-coral-dark transition-colors flex items-center gap-2
+           border-2 border-navy uppercase tracking-wide;
   }
   .btn-secondary {
-    @apply bg-nude-200 text-nude-800 px-4 py-2 rounded-lg text-sm font-medium
-           hover:bg-nude-300 transition-colors flex items-center gap-2;
+    @apply bg-cream-300 text-navy px-4 py-2 rounded-lg text-sm font-semibold
+           hover:bg-cream-400 transition-colors flex items-center gap-2
+           border-2 border-navy uppercase tracking-wide;
   }
   .btn-ghost {
-    @apply text-nude-700 px-3 py-2 rounded-lg text-sm
-           hover:bg-nude-200 transition-colors flex items-center gap-2;
+    @apply text-navy px-3 py-2 rounded-lg text-sm font-medium
+           hover:bg-cream-300 transition-colors flex items-center gap-2;
   }
   .card {
-    @apply bg-nude-50 border border-nude-300 rounded-xl p-5;
+    @apply bg-white border-2 border-navy rounded-xl p-5
+           shadow-[3px_3px_0px_0px_#1B2B6B];
   }
   .input {
-    @apply w-full bg-nude-50 border border-nude-400 rounded-lg px-3 py-2 text-sm
-           text-nude-900 placeholder:text-nude-500
-           focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
+    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
+           text-navy placeholder:text-navy/40
+           focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral
            transition-all;
   }
   .label {
-    @apply block text-xs font-medium text-nude-700 mb-1;
+    @apply block text-xs font-bold text-navy mb-1 uppercase tracking-wider;
   }
   .select {
-    @apply w-full bg-nude-50 border border-nude-400 rounded-lg px-3 py-2 text-sm
-           text-nude-900 focus:outline-none focus:ring-2 focus:ring-accent
-           focus:border-transparent transition-all cursor-pointer;
+    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
+           text-navy focus:outline-none focus:ring-2 focus:ring-coral
+           focus:border-coral transition-all cursor-pointer font-medium;
   }
   .textarea {
-    @apply w-full bg-nude-50 border border-nude-400 rounded-lg px-3 py-2 text-sm
-           text-nude-900 placeholder:text-nude-500 resize-none
-           focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent
+    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
+           text-navy placeholder:text-navy/40 resize-none
+           focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral
            transition-all;
   }
   .badge {
-    @apply inline-flex items-center text-xs px-2 py-0.5 rounded-full font-medium;
+    @apply inline-flex items-center text-xs px-2 py-0.5 rounded-full font-bold
+           border border-current uppercase tracking-wide;
   }
   .tab {
-    @apply px-4 py-2 text-sm font-medium text-nude-600 border-b-2 border-transparent
-           hover:text-nude-900 hover:border-nude-400 transition-all cursor-pointer;
+    @apply px-4 py-2 text-sm font-bold text-navy/50 border-b-2 border-transparent
+           hover:text-navy hover:border-navy transition-all cursor-pointer uppercase tracking-wide;
   }
   .tab-active {
-    @apply text-nude-900 border-accent;
+    @apply text-navy border-coral;
   }
 }
