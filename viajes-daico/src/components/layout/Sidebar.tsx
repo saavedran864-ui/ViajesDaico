@@ -30,47 +30,55 @@ export default function Sidebar({ userName }: SidebarProps) {
     const active = pathname === href || pathname.startsWith(href + '/')
     return (
       <Link href={href}
-        className={cn('flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all',
+        className={cn(
+          'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wide transition-all border-2',
           collapsed ? 'justify-center px-2' : '',
-          active ? 'bg-accent/20 text-nude-50' : 'text-nude-50/50 hover:text-nude-50/80 hover:bg-white/5'
+          active
+            ? 'bg-coral text-white border-white/20'
+            : 'text-white/60 border-transparent hover:text-white hover:bg-white/10'
         )}
         title={collapsed ? label : undefined}>
-        <Icon size={15} className={active ? 'text-accent' : ''} />
+        <Icon size={16} />
         {!collapsed && label}
       </Link>
     )
   }
 
   return (
-    <aside className={cn('bg-nude-900 flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-200',
-      collapsed ? 'w-14' : 'w-52'
+    <aside className={cn(
+      'bg-navy-600 flex flex-col shrink-0 h-screen sticky top-0 transition-all duration-200 border-r-2 border-navy-900',
+      collapsed ? 'w-14' : 'w-56'
     )}>
-      <div className={cn('px-5 py-6 border-b border-white/8 flex items-center justify-between', collapsed && 'px-2 justify-center')}>
+      <div className={cn('px-4 py-5 border-b-2 border-white/10 flex items-center justify-between', collapsed && 'px-2 justify-center')}>
         {!collapsed && (
           <div>
-            <p className="text-[9px] tracking-[3px] text-white/25 uppercase mb-1">tu segundo cerebro</p>
-            <h1 className="text-[17px] font-serif font-normal text-nude-50">Viajes <span className="text-accent">DaiCo</span></h1>
+            <p className="text-[9px] tracking-[3px] text-white/30 uppercase mb-1">tu segundo cerebro</p>
+            <h1 className="text-xl font-display text-white uppercase tracking-wider">
+              VIAJES <span className="text-coral">DAICO</span>
+            </h1>
           </div>
         )}
         <button onClick={() => setCollapsed(c => !c)}
-          className="text-white/30 hover:text-white/70 transition-colors p-1 rounded-lg hover:bg-white/5 shrink-0">
+          className="text-white/30 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10 shrink-0">
           {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
       </div>
-      <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+
+      <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
         {navItems.map(item => <NavItem key={item.href} {...item} />)}
       </nav>
-      <div className="p-2 border-t border-white/8">
+
+      <div className="p-2 border-t-2 border-white/10">
         <div className={cn('flex items-center gap-2.5 px-2 py-2 rounded-lg', collapsed && 'justify-center')}>
-          <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-xs font-medium text-nude-50 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-coral border-2 border-white/20 flex items-center justify-center text-xs font-bold text-white shrink-0">
             {userName?.[0]?.toUpperCase() ?? 'U'}
           </div>
           {!collapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-white/75 truncate">{userName ?? 'Usuario'}</p>
+                <p className="text-xs font-bold text-white/75 truncate uppercase">{userName ?? 'Usuario'}</p>
               </div>
-              <button onClick={handleLogout} className="text-white/30 hover:text-white/70 transition-colors">
+              <button onClick={handleLogout} className="text-white/30 hover:text-white transition-colors">
                 <LogOut size={14} />
               </button>
             </>
