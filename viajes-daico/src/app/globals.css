@@ -1,79 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --navy:  #1B2B6B;
-  --cream: #F5E6C8;
-  --coral: #E8453C;
-  --sky:   #4ABDE8;
+  --bg:      #F4F5F7;
+  --surface: #FFFFFF;
+  --border:  #E8E9EC;
+  --text:    #1A1D23;
+  --muted:   #6B7280;
+  --accent:  #7C3AED;
+  --accent-l:#EDE9FE;
 }
 
 * { box-sizing: border-box; }
 
 body {
-  background-color: var(--cream);
-  color: var(--navy);
-  font-family: 'Barlow', system-ui, sans-serif;
-}
-
-h1, h2, h3 {
-  font-family: 'Barlow Condensed', Impact, sans-serif;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-[#E8453C] text-white px-4 py-2 rounded-lg text-sm font-semibold
-           hover:bg-[#C42E26] transition-colors flex items-center gap-2
-           border-2 border-[#1B2B6B] uppercase tracking-wide;
+    @apply bg-[#7C3AED] text-white px-4 py-2 rounded-lg text-sm font-medium
+           hover:bg-[#6D28D9] transition-colors flex items-center gap-2;
   }
   .btn-secondary {
-    @apply bg-[#F5E6C8] text-[#1B2B6B] px-4 py-2 rounded-lg text-sm font-semibold
-           hover:bg-[#EDD8A8] transition-colors flex items-center gap-2
-           border-2 border-[#1B2B6B] uppercase tracking-wide;
+    @apply bg-white text-[#1A1D23] px-4 py-2 rounded-lg text-sm font-medium
+           hover:bg-[#F4F5F7] transition-colors flex items-center gap-2
+           border border-[#E8E9EC];
   }
   .btn-ghost {
-    @apply text-[#1B2B6B] px-3 py-2 rounded-lg text-sm font-medium
-           hover:bg-[#F5E6C8] transition-colors flex items-center gap-2;
+    @apply text-[#6B7280] px-3 py-2 rounded-lg text-sm
+           hover:bg-[#F4F5F7] transition-colors flex items-center gap-2;
   }
   .card {
-    @apply bg-white border-2 border-[#1B2B6B] rounded-xl p-5
-           shadow-[3px_3px_0px_0px_#1B2B6B];
+    @apply bg-white rounded-2xl p-5
+           shadow-[0_1px_4px_rgba(0,0,0,0.06),0_4px_16px_rgba(0,0,0,0.04)];
   }
   .input {
-    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
-           text-[#1B2B6B] placeholder:text-[#1B2B6B]/40
-           focus:outline-none focus:ring-2 focus:ring-[#E8453C] focus:border-[#E8453C]
-           transition-all;
+    @apply w-full bg-[#F4F5F7] border border-[#E8E9EC] rounded-xl px-3 py-2.5 text-sm
+           text-[#1A1D23] placeholder:text-[#9CA3AF]
+           focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]
+           focus:bg-white transition-all;
   }
   .label {
-    @apply block text-xs font-bold text-[#1B2B6B] mb-1 uppercase tracking-wider;
+    @apply block text-xs font-medium text-[#6B7280] mb-1.5;
   }
   .select {
-    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
-           text-[#1B2B6B] focus:outline-none focus:ring-2 focus:ring-[#E8453C]
-           focus:border-[#E8453C] transition-all cursor-pointer font-medium;
+    @apply w-full bg-[#F4F5F7] border border-[#E8E9EC] rounded-xl px-3 py-2.5 text-sm
+           text-[#1A1D23] focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30
+           focus:border-[#7C3AED] focus:bg-white transition-all cursor-pointer;
   }
   .textarea {
-    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
-           text-[#1B2B6B] placeholder:text-[#1B2B6B]/40 resize-none
-           focus:outline-none focus:ring-2 focus:ring-[#E8453C] focus:border-[#E8453C]
-           transition-all;
+    @apply w-full bg-[#F4F5F7] border border-[#E8E9EC] rounded-xl px-3 py-2.5 text-sm
+           text-[#1A1D23] placeholder:text-[#9CA3AF] resize-none
+           focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/30 focus:border-[#7C3AED]
+           focus:bg-white transition-all;
   }
   .badge {
-    @apply inline-flex items-center text-xs px-2 py-0.5 rounded-full font-bold
-           border border-current uppercase tracking-wide;
+    @apply inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium;
   }
   .tab {
-    @apply px-4 py-2 text-sm font-bold text-[#1B2B6B]/50 border-b-2 border-transparent
-           hover:text-[#1B2B6B] hover:border-[#1B2B6B] transition-all cursor-pointer uppercase tracking-wide;
+    @apply px-4 py-2.5 text-sm font-medium text-[#6B7280] border-b-2 border-transparent
+           hover:text-[#1A1D23] transition-all cursor-pointer;
   }
   .tab-active {
-    @apply text-[#1B2B6B] border-[#E8453C];
+    @apply text-[#7C3AED] border-[#7C3AED];
   }
 }
