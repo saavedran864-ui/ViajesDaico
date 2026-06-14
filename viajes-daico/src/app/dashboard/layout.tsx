@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .from('profiles')
     .select('nombre')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   return (
     <div className="flex h-screen overflow-hidden">
