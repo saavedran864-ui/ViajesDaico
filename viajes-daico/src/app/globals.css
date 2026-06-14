@@ -5,11 +5,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=Barlow:wght@400;500;600&display=swap');
 
 :root {
-  --navy:    #1B2B6B;
-  --cream:   #F5E6C8;
-  --coral:   #E8453C;
-  --sky:     #4ABDE8;
-  --white:   #FFFDF7;
+  --navy:  #1B2B6B;
+  --cream: #F5E6C8;
+  --coral: #E8453C;
+  --sky:   #4ABDE8;
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +19,7 @@ body {
   font-family: 'Barlow', system-ui, sans-serif;
 }
 
-h1, h2, h3, .display {
+h1, h2, h3 {
   font-family: 'Barlow Condensed', Impact, sans-serif;
   font-weight: 800;
   text-transform: uppercase;
@@ -29,41 +28,41 @@ h1, h2, h3, .display {
 
 @layer components {
   .btn-primary {
-    @apply bg-coral text-white px-4 py-2 rounded-lg text-sm font-semibold
-           hover:bg-coral-dark transition-colors flex items-center gap-2
-           border-2 border-navy uppercase tracking-wide;
+    @apply bg-[#E8453C] text-white px-4 py-2 rounded-lg text-sm font-semibold
+           hover:bg-[#C42E26] transition-colors flex items-center gap-2
+           border-2 border-[#1B2B6B] uppercase tracking-wide;
   }
   .btn-secondary {
-    @apply bg-cream-300 text-navy px-4 py-2 rounded-lg text-sm font-semibold
-           hover:bg-cream-400 transition-colors flex items-center gap-2
-           border-2 border-navy uppercase tracking-wide;
+    @apply bg-[#F5E6C8] text-[#1B2B6B] px-4 py-2 rounded-lg text-sm font-semibold
+           hover:bg-[#EDD8A8] transition-colors flex items-center gap-2
+           border-2 border-[#1B2B6B] uppercase tracking-wide;
   }
   .btn-ghost {
-    @apply text-navy px-3 py-2 rounded-lg text-sm font-medium
-           hover:bg-cream-300 transition-colors flex items-center gap-2;
+    @apply text-[#1B2B6B] px-3 py-2 rounded-lg text-sm font-medium
+           hover:bg-[#F5E6C8] transition-colors flex items-center gap-2;
   }
   .card {
-    @apply bg-white border-2 border-navy rounded-xl p-5
+    @apply bg-white border-2 border-[#1B2B6B] rounded-xl p-5
            shadow-[3px_3px_0px_0px_#1B2B6B];
   }
   .input {
-    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
-           text-navy placeholder:text-navy/40
-           focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral
+    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
+           text-[#1B2B6B] placeholder:text-[#1B2B6B]/40
+           focus:outline-none focus:ring-2 focus:ring-[#E8453C] focus:border-[#E8453C]
            transition-all;
   }
   .label {
-    @apply block text-xs font-bold text-navy mb-1 uppercase tracking-wider;
+    @apply block text-xs font-bold text-[#1B2B6B] mb-1 uppercase tracking-wider;
   }
   .select {
-    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
-           text-navy focus:outline-none focus:ring-2 focus:ring-coral
-           focus:border-coral transition-all cursor-pointer font-medium;
+    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
+           text-[#1B2B6B] focus:outline-none focus:ring-2 focus:ring-[#E8453C]
+           focus:border-[#E8453C] transition-all cursor-pointer font-medium;
   }
   .textarea {
-    @apply w-full bg-white border-2 border-navy rounded-lg px-3 py-2 text-sm
-           text-navy placeholder:text-navy/40 resize-none
-           focus:outline-none focus:ring-2 focus:ring-coral focus:border-coral
+    @apply w-full bg-white border-2 border-[#1B2B6B] rounded-lg px-3 py-2 text-sm
+           text-[#1B2B6B] placeholder:text-[#1B2B6B]/40 resize-none
+           focus:outline-none focus:ring-2 focus:ring-[#E8453C] focus:border-[#E8453C]
            transition-all;
   }
   .badge {
@@ -71,10 +70,10 @@ h1, h2, h3, .display {
            border border-current uppercase tracking-wide;
   }
   .tab {
-    @apply px-4 py-2 text-sm font-bold text-navy/50 border-b-2 border-transparent
-           hover:text-navy hover:border-navy transition-all cursor-pointer uppercase tracking-wide;
+    @apply px-4 py-2 text-sm font-bold text-[#1B2B6B]/50 border-b-2 border-transparent
+           hover:text-[#1B2B6B] hover:border-[#1B2B6B] transition-all cursor-pointer uppercase tracking-wide;
   }
   .tab-active {
-    @apply text-navy border-coral;
+    @apply text-[#1B2B6B] border-[#E8453C];
   }
 }
