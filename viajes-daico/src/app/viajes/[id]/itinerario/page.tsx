@@ -1,9 +1,12 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Utensils, Map, Pencil, Check, X, Plane, Car, Train, PersonStanding, Bike, Ship } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronRight, MapPin, Utensils, Map, Pencil, Check, X, Plane, Car, Train, PersonStanding, Bike, Ship, GripVertical } from 'lucide-react'
 import type { Dia, Actividad } from '@/types'
 import { formatFecha, CATEGORIAS_ACTIVIDAD } from '@/lib/utils'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface Recomendacion {
   id: string; dia_id: string; nombre: string; tipo: string; ubicacion: string | null; notas: string | null
@@ -31,12 +34,12 @@ const TIPOS_RECO = [
 ]
 
 const MODOS_TRANSPORTE = [
-  { value: 'auto',      label: 'Auto',      icon: Car },
-  { value: 'avion',     label: 'Avion',     icon: Plane },
-  { value: 'tren',      label: 'Tren',      icon: Train },
+  { value: 'auto', label: 'Auto', icon: Car },
+  { value: 'avion', label: 'Avion', icon: Plane },
+  { value: 'tren', label: 'Tren', icon: Train },
   { value: 'caminando', label: 'Caminando', icon: PersonStanding },
-  { value: 'bici',      label: 'Bici',      icon: Bike },
-  { value: 'barco',     label: 'Barco',     icon: Ship },
+  { value: 'bici', label: 'Bici', icon: Bike },
+  { value: 'barco', label: 'Barco', icon: Ship },
 ]
 
 function UbicacionInput({ value, onChange, placeholder = 'Ej: Coliseo, Roma' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
@@ -52,6 +55,76 @@ function UbicacionInput({ value, onChange, placeholder = 'Ej: Coliseo, Roma' }: 
     })
   }, [])
   return <input ref={inputRef} className="input" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
+}
+
+function SortableActividad({ act, diaId, editingAct, editActForm, setEditActForm, startEditAct, saveEditAct, deleteActividad, mapsLoaded, setEditingAct }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: act.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {editingAct === act.id ? (
+        <form onSubmit={e => saveEditAct(e, diaId, act.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="label">Actividad *</label>
+              <input className="input" value={editActForm.nombre} onChange={e => setEditActForm((f: any) => ({ ...f, nombre: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="label">Hora</label>
+              <input className="input" type="time" value={editActForm.hora} onChange={e => setEditActForm((f: any) => ({ ...f, hora: e.target.value }))} />
+            </div>
+            <div>
+              <label className="label">Categoria</label>
+              <select className="select" value={editActForm.categoria} onChange={e => setEditActForm((f: any) => ({ ...f, categoria: e.target.value }))}>
+                {CATEGORIAS_ACTIVIDAD.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="label">Ubicacion</label>
+              {mapsLoaded
+                ? <UbicacionInput value={editActForm.ubicacion} onChange={(v: string) => setEditActForm((f: any) => ({ ...f, ubicacion: v }))} />
+                : <input className="input" value={editActForm.ubicacion} onChange={e => setEditActForm((f: any) => ({ ...f, ubicacion: e.target.value }))} />
+              }
+            </div>
+            <div className="col-span-2">
+              <label className="label">Notas</label>
+              <input className="input" value={editActForm.notas} onChange={e => setEditActForm((f: any) => ({ ...f, notas: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className="btn-primary text-xs px-3 py-1.5"><Check size={12} /> Guardar</button>
+            <button type="button" onClick={() => setEditingAct(null)} className="btn-secondary text-xs px-3 py-1.5"><X size={12} /> Cancelar</button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex items-start gap-2 p-3 bg-[#F4F5F7] rounded-xl group">
+          <button {...attributes} {...listeners} className="text-[#D1D5DB] hover:text-[#9CA3AF] cursor-grab active:cursor-grabbing mt-0.5 shrink-0">
+            <GripVertical size={14} />
+          </button>
+          {act.hora && <span className="text-[11px] text-[#9CA3AF] font-mono mt-0.5 w-10 shrink-0">{act.hora}</span>}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[#1A1D23]">{act.nombre}</p>
+            {act.ubicacion && (
+              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.ubicacion)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="text-xs text-[#7C3AED] hover:underline flex items-center gap-1 mt-0.5">
+                <MapPin size={10} /> {act.ubicacion}
+              </a>
+            )}
+            {act.notas && <p className="text-xs text-[#9CA3AF] mt-0.5 italic">{act.notas}</p>}
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#6B7280] border border-[#E8E9EC] shrink-0">
+            {CATEGORIAS_ACTIVIDAD.find(c => c.value === act.categoria)?.label}
+          </span>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+            <button onClick={() => startEditAct(act)} className="text-[#9CA3AF] hover:text-[#7C3AED]"><Pencil size={12} /></button>
+            <button onClick={() => deleteActividad(diaId, act.id)} className="text-[#9CA3AF] hover:text-red-500"><Trash2 size={12} /></button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function ItinerarioPage({ params }: { params: Promise<{ id: string }> }) {
@@ -75,6 +148,8 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
   const [mapsLoaded, setMapsLoaded] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<any[]>([])
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => { params.then(p => { setViajeId(p.id); load(p.id) }) }, [])
 
@@ -152,6 +227,20 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
     })
   }
 
+  async function handleDragEnd(event: any, diaId: string) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const dia = dias.find(d => d.id === diaId)
+    if (!dia) return
+    const oldIndex = dia.actividades.findIndex(a => a.id === active.id)
+    const newIndex = dia.actividades.findIndex(a => a.id === over.id)
+    const newActividades = arrayMove(dia.actividades, oldIndex, newIndex)
+    setDias(ds => ds.map(d => d.id === diaId ? { ...d, actividades: newActividades } : d))
+    await Promise.all(newActividades.map((act, idx) =>
+      supabase.from('actividades').update({ orden: idx }).eq('id', act.id)
+    ))
+  }
+
   async function addDia(e: React.FormEvent) {
     e.preventDefault()
     if (!viajeId || !newDiaFecha) return
@@ -167,9 +256,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
   function startEditDia(dia: DiaExtendido) {
     setEditingDia(dia.id)
     setEditDia({
-      fecha: dia.fecha,
-      titulo: dia.titulo ?? '',
-      ciudad: dia.ciudad ?? '',
+      fecha: dia.fecha, titulo: dia.titulo ?? '', ciudad: dia.ciudad ?? '',
       distancia: dia.distancia_desde_anterior?.toString() ?? '',
       tiempo: dia.tiempo_desde_anterior?.toString() ?? '',
       modo: dia.modo_transporte ?? 'auto',
@@ -178,9 +265,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
 
   async function saveDia(diaId: string) {
     await supabase.from('dias').update({
-      fecha: editDia.fecha,
-      titulo: editDia.titulo || null,
-      ciudad: editDia.ciudad || null,
+      fecha: editDia.fecha, titulo: editDia.titulo || null, ciudad: editDia.ciudad || null,
       distancia_desde_anterior: editDia.distancia ? parseFloat(editDia.distancia) : null,
       tiempo_desde_anterior: editDia.tiempo ? parseInt(editDia.tiempo) : null,
       modo_transporte: editDia.modo,
@@ -379,67 +464,25 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
 
                 {activeTab[dia.id] === 'actividades' ? (
                   <div className="space-y-2">
-                    {dia.actividades.map(act => (
-                      <div key={act.id}>
-                        {editingAct === act.id ? (
-                          <form onSubmit={e => saveEditAct(e, dia.id, act.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="col-span-2">
-                                <label className="label">Actividad *</label>
-                                <input className="input" value={editActForm.nombre} onChange={e => setEditActForm(f => ({ ...f, nombre: e.target.value }))} required />
-                              </div>
-                              <div>
-                                <label className="label">Hora</label>
-                                <input className="input" type="time" value={editActForm.hora} onChange={e => setEditActForm(f => ({ ...f, hora: e.target.value }))} />
-                              </div>
-                              <div>
-                                <label className="label">Categoria</label>
-                                <select className="select" value={editActForm.categoria} onChange={e => setEditActForm(f => ({ ...f, categoria: e.target.value }))}>
-                                  {CATEGORIAS_ACTIVIDAD.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                                </select>
-                              </div>
-                              <div className="col-span-2">
-                                <label className="label">Ubicacion</label>
-                                {mapsLoaded
-                                  ? <UbicacionInput value={editActForm.ubicacion} onChange={v => setEditActForm(f => ({ ...f, ubicacion: v }))} />
-                                  : <input className="input" value={editActForm.ubicacion} onChange={e => setEditActForm(f => ({ ...f, ubicacion: e.target.value }))} />
-                                }
-                              </div>
-                              <div className="col-span-2">
-                                <label className="label">Notas</label>
-                                <input className="input" value={editActForm.notas} onChange={e => setEditActForm(f => ({ ...f, notas: e.target.value }))} />
-                              </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <button type="submit" className="btn-primary text-xs px-3 py-1.5"><Check size={12} /> Guardar</button>
-                              <button type="button" onClick={() => setEditingAct(null)} className="btn-secondary text-xs px-3 py-1.5"><X size={12} /> Cancelar</button>
-                            </div>
-                          </form>
-                        ) : (
-                          <div className="flex items-start gap-3 p-3 bg-[#F4F5F7] rounded-xl group">
-                            {act.hora && <span className="text-[11px] text-[#9CA3AF] font-mono mt-0.5 w-10 shrink-0">{act.hora}</span>}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-[#1A1D23]">{act.nombre}</p>
-                              {act.ubicacion && (
-                                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.ubicacion)}`}
-                                  target="_blank" rel="noopener noreferrer"
-                                  className="text-xs text-[#7C3AED] hover:underline flex items-center gap-1 mt-0.5">
-                                  <MapPin size={10} /> {act.ubicacion}
-                                </a>
-                              )}
-                              {act.notas && <p className="text-xs text-[#9CA3AF] mt-0.5 italic">{act.notas}</p>}
-                            </div>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#6B7280] border border-[#E8E9EC] shrink-0">
-                              {CATEGORIAS_ACTIVIDAD.find(c => c.value === act.categoria)?.label}
-                            </span>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                              <button onClick={() => startEditAct(act)} className="text-[#9CA3AF] hover:text-[#7C3AED]"><Pencil size={12} /></button>
-                              <button onClick={() => deleteActividad(dia.id, act.id)} className="text-[#9CA3AF] hover:text-red-500"><Trash2 size={12} /></button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={e => handleDragEnd(e, dia.id)}>
+                      <SortableContext items={dia.actividades.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                        {dia.actividades.map(act => (
+                          <SortableActividad
+                            key={act.id}
+                            act={act}
+                            diaId={dia.id}
+                            editingAct={editingAct}
+                            editActForm={editActForm}
+                            setEditActForm={setEditActForm}
+                            startEditAct={startEditAct}
+                            saveEditAct={saveEditAct}
+                            deleteActividad={deleteActividad}
+                            mapsLoaded={mapsLoaded}
+                            setEditingAct={setEditingAct}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
                     {showActForm === dia.id ? (
                       <form onSubmit={e => addActividad(e, dia.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
                         <div className="grid grid-cols-2 gap-3">
