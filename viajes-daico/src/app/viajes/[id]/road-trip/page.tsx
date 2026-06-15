@@ -13,6 +13,7 @@ interface Tramo {
   distancia_km: number | null
   tiempo_min: number | null
   dia_id: string | null
+  orden: number
 }
 
 interface Dia {
@@ -65,15 +66,15 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   const [precio, setPrecio] = useState('1.5')
   const mapRef = useRef<HTMLDivElement>(null)
   const [showMap, setShowMap] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    params.then(p => { setViajeId(p.id); loadDias(p.id) })
+    params.then(p => { setViajeId(p.id); loadData(p.id) })
   }, [])
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-    if (!apiKey) return
-    if (window.google) return
+    if (!apiKey || window.google) return
     window.initRoadMap = () => {}
     const existing = document.querySelector('script[src*="maps.googleapis.com"]')
     if (!existing) {
@@ -84,30 +85,39 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
     }
   }, [])
 
-  async function loadDias(id: string) {
-    const { data } = await supabase.from('dias').select('id,fecha,titulo,ciudad').eq('viaje_id', id).order('fecha')
-    setDias(data ?? [])
+  async function loadData(id: string) {
+    const [{ data: tramosData }, { data: diasData }] = await Promise.all([
+      supabase.from('road_trip_tramos').select('*').eq('viaje_id', id).order('orden'),
+      supabase.from('dias').select('id,fecha,titulo,ciudad').eq('viaje_id', id).order('fecha'),
+    ])
+    setTramos(tramosData ?? [])
+    setDias(diasData ?? [])
+    setLoading(false)
   }
 
-  function addTramo() {
+  async function addTramo() {
     const ultimo = tramos[tramos.length - 1]
-    setTramos(t => [...t, {
-      id: Date.now().toString(),
+    const { data } = await supabase.from('road_trip_tramos').insert({
+      viaje_id: viajeId,
       origen: ultimo?.destino ?? '',
       destino: '',
       modo: 'auto',
       distancia_km: null,
       tiempo_min: null,
       dia_id: null,
-    }])
+      orden: tramos.length,
+    }).select().single()
+    if (data) setTramos(t => [...t, data])
   }
 
-  function removeTramo(id: string) {
+  async function removeTramo(id: string) {
+    await supabase.from('road_trip_tramos').delete().eq('id', id)
     setTramos(t => t.filter(x => x.id !== id))
   }
 
-  function updateTramo(id: string, changes: Partial<Tramo>) {
+  async function updateTramo(id: string, changes: Partial<Tramo>) {
     setTramos(t => t.map(x => x.id === id ? { ...x, ...changes } : x))
+    await supabase.from('road_trip_tramos').update(changes).eq('id', id)
   }
 
   async function calcularTramo(tramo: Tramo) {
@@ -129,7 +139,7 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
         const velocidades: Record<string, number> = { avion: 800, barco: 30, bici: 20, caminando: 5 }
         const vel = velocidades[tramo.modo] ?? 50
         const min = Math.round((km / vel) * 60)
-        updateTramo(tramo.id, { distancia_km: km, tiempo_min: min })
+        await updateTramo(tramo.id, { distancia_km: km, tiempo_min: min })
       }
       return
     }
@@ -138,10 +148,10 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
       origin: tramo.origen,
       destination: tramo.destino,
       travelMode: tramo.modo === 'tren' ? window.google.maps.TravelMode.TRANSIT : window.google.maps.TravelMode.DRIVING,
-    }, (result: any, status: any) => {
+    }, async (result: any, status: any) => {
       if (status === 'OK') {
         const leg = result.routes[0].legs[0]
-        updateTramo(tramo.id, {
+        await updateTramo(tramo.id, {
           distancia_km: Math.round(leg.distance.value / 1000),
           tiempo_min: Math.round(leg.duration.value / 60),
         })
@@ -185,9 +195,7 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
         waypoints,
         travelMode: window.google.maps.TravelMode.DRIVING,
       }, (result: any, status: any) => {
-        if (status === 'OK') {
-          new window.google.maps.DirectionsRenderer({ map }).setDirections(result)
-        }
+        if (status === 'OK') new window.google.maps.DirectionsRenderer({ map }).setDirections(result)
       })
     }
   }
@@ -205,6 +213,8 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   const costoCombustible = litros * parseFloat(precio || '0')
   const horas = Math.floor(totalMin / 60)
   const minutos = totalMin % 60
+
+  if (loading) return <div className="text-[#6B7280] text-sm">Cargando...</div>
 
   return (
     <div className="max-w-2xl space-y-5">
