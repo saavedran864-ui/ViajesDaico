@@ -1,29 +1,65 @@
 'use client'
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Plus, Trash2, MapPin, Clock, Fuel, Navigation } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Plus, Trash2, MapPin, Clock, Fuel, Navigation, Plane, Car, Train, PersonStanding, Bike, Ship, ChevronRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 declare global { interface Window { google: any; initRoadMap: () => void } }
 
-interface Parada {
+interface Tramo {
   id: string
-  nombre: string
+  origen: string
+  destino: string
+  modo: string
   distancia_km: number | null
   tiempo_min: number | null
+  dia_id: string | null
 }
 
-export default function RoadTripPage() {
-  const [paradas, setParadas] = useState<Parada[]>([
-    { id: '1', nombre: '', distancia_km: null, tiempo_min: null },
-    { id: '2', nombre: '', distancia_km: null, tiempo_min: null },
-  ])
-  const [consumo, setConsumo] = useState('8')
-  const [precioCombustible, setPrecioCombustible] = useState('1.5')
-  const [calculando, setCalculando] = useState(false)
-  const [calculado, setCalculado] = useState(false)
+interface Dia {
+  id: string
+  fecha: string
+  titulo: string | null
+  ciudad: string | null
+}
+
+const MODOS = [
+  { value: 'auto',      label: 'Auto',      icon: Car },
+  { value: 'avion',     label: 'Avion',     icon: Plane },
+  { value: 'tren',      label: 'Tren',      icon: Train },
+  { value: 'caminando', label: 'Caminando', icon: PersonStanding },
+  { value: 'bici',      label: 'Bici',      icon: Bike },
+  { value: 'barco',     label: 'Barco',     icon: Ship },
+]
+
+function LugarInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const autoRef = useRef<any>(null)
+  useEffect(() => {
+    if (!inputRef.current || !window.google || autoRef.current) return
+    autoRef.current = new window.google.maps.places.Autocomplete(inputRef.current, { types: ['geocode', 'establishment'] })
+    autoRef.current.addListener('place_changed', () => {
+      const place = autoRef.current.getPlace()
+      onChange(place?.formatted_address || place?.name || '')
+    })
+  }, [window.google])
+  return <input ref={inputRef} className="input" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
+}
+
+export default function RoadTripPage({ params }: { params: Promise<{ id: string }> }) {
+  const supabase = createClient()
+  const [viajeId, setViajeId] = useState('')
+  const [tramos, setTramos] = useState<Tramo[]>([])
+  const [dias, setDias] = useState<Dia[]>([])
   const [mapsLoaded, setMapsLoaded] = useState(false)
+  const [calculando, setCalculando] = useState(false)
+  const [consumo, setConsumo] = useState('8')
+  const [precio, setPrecio] = useState('1.5')
   const mapRef = useRef<HTMLDivElement>(null)
-  const inputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const autocompletes = useRef<Record<string, any>>({})
+  const [showMap, setShowMap] = useState(false)
+
+  useEffect(() => {
+    params.then(p => { setViajeId(p.id); loadDias(p.id) })
+  }, [])
 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
@@ -36,94 +72,131 @@ export default function RoadTripPage() {
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initRoadMap`
       script.async = true
       document.head.appendChild(script)
-    } else {
-      if (window.google) setMapsLoaded(true)
-    }
+    } else if (window.google) { setMapsLoaded(true) }
   }, [])
 
-  useEffect(() => {
-    if (!mapsLoaded) return
-    paradas.forEach(parada => {
-      const input = inputRefs.current[parada.id]
-      if (!input || autocompletes.current[parada.id]) return
-      const ac = new window.google.maps.places.Autocomplete(input, { types: ['geocode', 'establishment'] })
-      ac.addListener('place_changed', () => {
-        const place = ac.getPlace()
-        const nombre = place?.formatted_address || place?.name || ''
-        setParadas(p => p.map(x => x.id === parada.id ? { ...x, nombre } : x))
-        setCalculado(false)
-      })
-      autocompletes.current[parada.id] = ac
-    })
-  }, [mapsLoaded, paradas.length])
-
-  function addParada() {
-    const nueva = { id: Date.now().toString(), nombre: '', distancia_km: null, tiempo_min: null }
-    setParadas(p => { const arr = [...p]; arr.splice(arr.length - 1, 0, nueva); return arr })
+  async function loadDias(id: string) {
+    const { data } = await supabase.from('dias').select('id,fecha,titulo,ciudad').eq('viaje_id', id).order('fecha')
+    setDias(data ?? [])
   }
 
-  function removeParada(id: string) {
-    if (paradas.length <= 2) return
-    delete autocompletes.current[id]
-    setParadas(p => p.filter(x => x.id !== id))
+  function addTramo() {
+    const ultimo = tramos[tramos.length - 1]
+    setTramos(t => [...t, {
+      id: Date.now().toString(),
+      origen: ultimo?.destino ?? '',
+      destino: '',
+      modo: 'auto',
+      distancia_km: null,
+      tiempo_min: null,
+      dia_id: null,
+    }])
   }
 
-  function updateNombre(id: string, nombre: string) {
-    setParadas(p => p.map(x => x.id === id ? { ...x, nombre } : x))
-    setCalculado(false)
+  function removeTramo(id: string) {
+    setTramos(t => t.filter(x => x.id !== id))
   }
 
-  async function calcular() {
-    const lugares = paradas.map(p => p.nombre).filter(Boolean)
-    if (lugares.length < 2 || !window.google) return
-    setCalculando(true)
+  function updateTramo(id: string, changes: Partial<Tramo>) {
+    setTramos(t => t.map(x => x.id === id ? { ...x, ...changes } : x))
+  }
+
+  async function calcularTramo(tramo: Tramo) {
+    if (!tramo.origen || !tramo.destino || !window.google) return
+    if (tramo.modo !== 'auto' && tramo.modo !== 'tren') {
+      // Para avion, barco, bici, caminando — usar distancia en linea recta
+      const geocoder = new window.google.maps.Geocoder()
+      const [r1, r2] = await Promise.all([
+        new Promise<any>(res => geocoder.geocode({ address: tramo.origen }, (r: any) => res(r?.[0]))),
+        new Promise<any>(res => geocoder.geocode({ address: tramo.destino }, (r: any) => res(r?.[0]))),
+      ])
+      if (r1 && r2) {
+        const lat1 = r1.geometry.location.lat(); const lng1 = r1.geometry.location.lng()
+        const lat2 = r2.geometry.location.lat(); const lng2 = r2.geometry.location.lng()
+        const R = 6371
+        const dLat = (lat2 - lat1) * Math.PI / 180
+        const dLon = (lng2 - lng1) * Math.PI / 180
+        const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2
+        const km = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)))
+        const velocidades: Record<string, number> = { avion: 800, barco: 30, bici: 20, caminando: 5 }
+        const vel = velocidades[tramo.modo] ?? 50
+        const min = Math.round((km / vel) * 60)
+        updateTramo(tramo.id, { distancia_km: km, tiempo_min: min })
+      }
+      return
+    }
+
     const service = new window.google.maps.DirectionsService()
-    const waypoints = lugares.slice(1, -1).map((loc: string) => ({ location: loc, stopover: true }))
     service.route({
-      origin: lugares[0],
-      destination: lugares[lugares.length - 1],
-      waypoints,
-      travelMode: window.google.maps.TravelMode.DRIVING,
+      origin: tramo.origen,
+      destination: tramo.destino,
+      travelMode: tramo.modo === 'tren' ? window.google.maps.TravelMode.TRANSIT : window.google.maps.TravelMode.DRIVING,
     }, (result: any, status: any) => {
       if (status === 'OK') {
-        const legs = result.routes[0].legs
-        const nuevasParadas = [...paradas]
-        legs.forEach((leg: any, idx: number) => {
-          nuevasParadas[idx + 1] = {
-            ...nuevasParadas[idx + 1],
-            distancia_km: Math.round(leg.distance.value / 1000),
-            tiempo_min: Math.round(leg.duration.value / 60),
-          }
+        const leg = result.routes[0].legs[0]
+        updateTramo(tramo.id, {
+          distancia_km: Math.round(leg.distance.value / 1000),
+          tiempo_min: Math.round(leg.duration.value / 60),
         })
-        setParadas(nuevasParadas)
-        setCalculado(true)
-        if (mapRef.current) {
-          const map = new window.google.maps.Map(mapRef.current, { mapTypeControl: false, streetViewControl: false })
-          const renderer = new window.google.maps.DirectionsRenderer()
-          renderer.setMap(map)
-          renderer.setDirections(result)
-        }
       }
-      setCalculando(false)
     })
+  }
+
+  async function calcularTodos() {
+    setCalculando(true)
+    for (const tramo of tramos) {
+      await calcularTramo(tramo)
+      await new Promise(r => setTimeout(r, 300))
+    }
+    setCalculando(false)
+    if (mapRef.current && window.google && showMap) renderMapa()
+  }
+
+  async function sincronizarConItinerario() {
+    for (const tramo of tramos) {
+      if (!tramo.dia_id || !tramo.distancia_km) continue
+      await supabase.from('dias').update({
+        ciudad: tramo.destino,
+        distancia_desde_anterior: tramo.distancia_km,
+        tiempo_desde_anterior: tramo.tiempo_min,
+        modo_transporte: tramo.modo,
+      }).eq('id', tramo.dia_id)
+    }
+    alert('Sincronizado con el itinerario!')
+  }
+
+  function renderMapa() {
+    if (!mapRef.current || !window.google) return
+    const map = new window.google.maps.Map(mapRef.current, { zoom: 5, center: { lat: 41.9, lng: 12.5 }, mapTypeControl: false })
+    const service = new window.google.maps.DirectionsService()
+    const tramosAuto = tramos.filter(t => t.modo === 'auto' && t.origen && t.destino)
+    if (tramosAuto.length > 0) {
+      const waypoints = tramosAuto.slice(1, -1).map(t => ({ location: t.origen, stopover: true }))
+      service.route({
+        origin: tramosAuto[0].origen,
+        destination: tramosAuto[tramosAuto.length - 1].destino,
+        waypoints,
+        travelMode: window.google.maps.TravelMode.DRIVING,
+      }, (result: any, status: any) => {
+        if (status === 'OK') {
+          new window.google.maps.DirectionsRenderer({ map }).setDirections(result)
+        }
+      })
+    }
   }
 
   function abrirEnMaps() {
-    const lugares = paradas.map(p => p.nombre).filter(Boolean)
+    const lugares = [...new Set(tramos.flatMap(t => [t.origen, t.destino]).filter(Boolean))]
     if (lugares.length < 2) return
-    const origin = encodeURIComponent(lugares[0])
-    const destination = encodeURIComponent(lugares[lugares.length - 1])
-    const waypoints = lugares.slice(1, -1).map(encodeURIComponent).join('|')
-    const url = waypoints
-      ? `https://www.google.com/maps/dir/${origin}/${waypoints}/${destination}`
-      : `https://www.google.com/maps/dir/${origin}/${destination}`
+    const url = `https://www.google.com/maps/dir/${lugares.map(encodeURIComponent).join('/')}`
     window.open(url, '_blank')
   }
 
-  const totalKm = paradas.slice(1).reduce((a, p) => a + (p.distancia_km ?? 0), 0)
-  const totalMin = paradas.slice(1).reduce((a, p) => a + (p.tiempo_min ?? 0), 0)
-  const litros = (totalKm * parseFloat(consumo || '0')) / 100
-  const costoCombustible = litros * parseFloat(precioCombustible || '0')
+  const totalKm = tramos.reduce((a, t) => a + (t.distancia_km ?? 0), 0)
+  const totalMin = tramos.reduce((a, t) => a + (t.tiempo_min ?? 0), 0)
+  const kmAuto = tramos.filter(t => t.modo === 'auto').reduce((a, t) => a + (t.distancia_km ?? 0), 0)
+  const litros = (kmAuto * parseFloat(consumo || '0')) / 100
+  const costoCombustible = litros * parseFloat(precio || '0')
   const horas = Math.floor(totalMin / 60)
   const minutos = totalMin % 60
 
@@ -132,96 +205,176 @@ export default function RoadTripPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-[#1A1D23]">Road Trip Planner</h2>
-          <p className="text-[#6B7280] text-sm mt-1">Ingresa las paradas y calculamos distancias automaticamente</p>
+          <p className="text-[#6B7280] text-sm mt-1">Planifica cada tramo con su modo de transporte</p>
         </div>
-        <button onClick={abrirEnMaps} className="btn-secondary"><Navigation size={14} /> Abrir en Maps</button>
+        <div className="flex gap-2">
+          <button onClick={abrirEnMaps} className="btn-secondary"><Navigation size={14} /> Maps</button>
+          <button onClick={() => { setShowMap(s => !s); if (!showMap && mapsLoaded) setTimeout(renderMapa, 100) }}
+            className="btn-secondary">
+            <MapPin size={14} /> {showMap ? 'Ocultar' : 'Ver mapa'}
+          </button>
+        </div>
       </div>
 
-      <div className="card space-y-3">
-        <h3 className="text-sm font-medium text-[#1A1D23] mb-2">Paradas del recorrido</h3>
-        {paradas.map((parada, idx) => (
-          <div key={parada.id} className="flex items-start gap-3">
-            <div className="flex flex-col items-center gap-0.5 shrink-0 w-6 pt-2">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                idx === 0 ? 'bg-green-100 text-green-700' :
-                idx === paradas.length - 1 ? 'bg-red-100 text-red-700' :
-                'bg-[#EDE9FE] text-[#7C3AED]'
-              }`}>
-                {idx === 0 ? 'A' : idx === paradas.length - 1 ? 'B' : idx}
+      {showMap && (
+        <div className="card p-0 overflow-hidden">
+          <div ref={mapRef} className="w-full h-64" />
+        </div>
+      )}
+
+      <div className="card space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium text-[#1A1D23]">Tramos del recorrido</h3>
+          <button onClick={addTramo} className="flex items-center gap-1.5 text-xs text-[#7C3AED] hover:text-[#6D28D9] font-medium">
+            <Plus size={13} /> Agregar tramo
+          </button>
+        </div>
+
+        {tramos.length === 0 && (
+          <div className="text-center py-8">
+            <p className="text-[#9CA3AF] text-sm mb-3">No hay tramos todavia</p>
+            <button onClick={addTramo} className="btn-primary"><Plus size={14} /> Agregar primer tramo</button>
+          </div>
+        )}
+
+        {tramos.map((tramo, idx) => {
+          const ModoIcon = MODOS.find(m => m.value === tramo.modo)?.icon ?? Car
+          return (
+            <div key={tramo.id} className="border border-[#E8E9EC] rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-[#7C3AED] bg-[#EDE9FE] px-2 py-0.5 rounded-full">Tramo {idx + 1}</span>
+                  <ModoIcon size={14} className="text-[#6B7280]" />
+                </div>
+                <button onClick={() => removeTramo(tramo.id)} className="text-[#9CA3AF] hover:text-red-500">
+                  <Trash2 size={13} />
+                </button>
               </div>
-              {idx < paradas.length - 1 && <div className="w-px h-6 bg-[#E8E9EC] mt-1" />}
-            </div>
-            <div className="flex-1 space-y-1.5">
-              <input
-                ref={el => { inputRefs.current[parada.id] = el }}
-                className="input"
-                placeholder={idx === 0 ? 'Ciudad de origen' : idx === paradas.length - 1 ? 'Ciudad de destino' : `Parada ${idx}`}
-                value={parada.nombre}
-                onChange={e => updateNombre(parada.id, e.target.value)}
-              />
-              {idx > 0 && parada.distancia_km !== null && (
-                <div className="flex gap-2">
-                  <span className="flex items-center gap-1 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-2.5 py-1">
-                    <MapPin size={10} className="text-[#7C3AED]" /> {parada.distancia_km} km
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Origen</label>
+                  {mapsLoaded
+                    ? <LugarInput value={tramo.origen} onChange={v => updateTramo(tramo.id, { origen: v })} placeholder="Ciudad de origen" />
+                    : <input className="input" placeholder="Ciudad de origen" value={tramo.origen} onChange={e => updateTramo(tramo.id, { origen: e.target.value })} />
+                  }
+                </div>
+                <div>
+                  <label className="label">Destino</label>
+                  {mapsLoaded
+                    ? <LugarInput value={tramo.destino} onChange={v => updateTramo(tramo.id, { destino: v })} placeholder="Ciudad de destino" />
+                    : <input className="input" placeholder="Ciudad de destino" value={tramo.destino} onChange={e => updateTramo(tramo.id, { destino: e.target.value })} />
+                  }
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Modo de transporte</label>
+                  <select className="select" value={tramo.modo} onChange={e => updateTramo(tramo.id, { modo: e.target.value })}>
+                    {MODOS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Dia del itinerario (destino)</label>
+                  <select className="select" value={tramo.dia_id ?? ''} onChange={e => updateTramo(tramo.id, { dia_id: e.target.value || null })}>
+                    <option value="">Sin asociar</option>
+                    {dias.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d.ciudad || d.titulo || d.fecha}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {tramo.distancia_km !== null && (
+                <div className="flex gap-3 pt-1">
+                  <span className="flex items-center gap-1.5 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-3 py-1.5">
+                    <MapPin size={11} className="text-[#7C3AED]" /> {tramo.distancia_km} km
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-2.5 py-1">
-                    <Clock size={10} className="text-[#7C3AED]" /> {Math.floor((parada.tiempo_min ?? 0) / 60)}h {(parada.tiempo_min ?? 0) % 60}m
+                  <span className="flex items-center gap-1.5 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-lg px-3 py-1.5">
+                    <Clock size={11} className="text-[#7C3AED]" /> {Math.floor((tramo.tiempo_min ?? 0) / 60)}h {(tramo.tiempo_min ?? 0) % 60}m
                   </span>
                 </div>
               )}
             </div>
-            {paradas.length > 2 && idx > 0 && idx < paradas.length - 1 && (
-              <button onClick={() => removeParada(parada.id)} className="text-[#9CA3AF] hover:text-red-500 transition-colors pt-2">
-                <Trash2 size={13} />
-              </button>
-            )}
+          )
+        })}
+
+        {tramos.length > 0 && (
+          <div className="flex gap-3 pt-2">
+            <button onClick={calcularTodos} disabled={calculando} className="btn-primary flex-1 justify-center">
+              {calculando ? 'Calculando...' : 'Calcular todos los tramos'}
+            </button>
+            <button onClick={sincronizarConItinerario} className="btn-secondary px-4">
+              Sincronizar con itinerario
+            </button>
           </div>
-        ))}
-        <button onClick={addParada} className="flex items-center gap-2 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors mt-1">
-          <Plus size={13} /> Agregar parada intermedia
-        </button>
+        )}
       </div>
 
-      <div className="card">
-        <h3 className="text-sm font-medium text-[#1A1D23] mb-3">Datos del vehiculo</h3>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="label">Consumo (litros/100km)</label>
-            <input className="input" type="number" step="0.1" value={consumo} onChange={e => setConsumo(e.target.value)} />
+      {totalKm > 0 && (
+        <div className="card">
+          <h3 className="text-sm font-medium text-[#1A1D23] mb-4">Resumen del viaje</h3>
+          <div className="space-y-3 mb-4">
+            {tramos.map((tramo, idx) => {
+              const ModoIcon = MODOS.find(m => m.value === tramo.modo)?.icon ?? Car
+              return (
+                <div key={tramo.id} className="flex items-center gap-3">
+                  <div className="flex flex-col items-center gap-0.5 shrink-0">
+                    <div className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-green-500' : 'bg-[#7C3AED]'}`} />
+                    {idx < tramos.length - 1 && <div className="w-px h-6 bg-[#E8E9EC]" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-[#1A1D23]">{tramo.origen}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-[#6B7280]">
+                    <ModoIcon size={12} className="text-[#7C3AED]" />
+                    <span>{tramo.distancia_km ? `${tramo.distancia_km} km` : '—'}</span>
+                    <ChevronRight size={11} />
+                    <span>{tramo.destino}</span>
+                  </div>
+                </div>
+              )
+            })}
+            <div className="flex items-center gap-3">
+              <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+              <p className="text-xs font-medium text-[#1A1D23]">{tramos[tramos.length - 1]?.destino}</p>
+            </div>
           </div>
-          <div>
-            <label className="label">Precio combustible (por litro)</label>
-            <input className="input" type="number" step="0.01" value={precioCombustible} onChange={e => setPrecioCombustible(e.target.value)} />
+
+          <div className="grid grid-cols-3 gap-3 border-t border-[#E8E9EC] pt-4">
+            <div className="text-center">
+              <p className="text-lg font-semibold text-[#1A1D23]">{totalKm} km</p>
+              <p className="text-xs text-[#6B7280]">Distancia total</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-[#1A1D23]">{horas}h {minutos}m</p>
+              <p className="text-xs text-[#6B7280]">Tiempo total</p>
+            </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-[#1A1D23]">{litros.toFixed(1)}L</p>
+              <p className="text-xs text-[#6B7280]">Combustible auto</p>
+            </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <div>
+              <label className="label">Consumo auto (L/100km)</label>
+              <input className="input" type="number" step="0.1" value={consumo} onChange={e => setConsumo(e.target.value)} />
+            </div>
+            <div>
+              <label className="label">Precio combustible</label>
+              <input className="input" type="number" step="0.01" value={precio} onChange={e => setPrecio(e.target.value)} />
+            </div>
+          </div>
+          {costoCombustible > 0 && (
+            <p className="text-sm text-center text-[#6B7280] mt-3">
+              Costo estimado combustible: <span className="font-semibold text-[#1A1D23]">${costoCombustible.toFixed(2)}</span>
+            </p>
+          )}
         </div>
-        <button onClick={calcular} disabled={calculando} className="btn-primary">
-          {calculando ? 'Calculando...' : 'Calcular ruta'}
-        </button>
-      </div>
-
-      {calculado && (
-        <>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="card text-center">
-              <MapPin size={18} className="text-[#7C3AED] mx-auto mb-2" />
-              <p className="text-xl font-semibold text-[#1A1D23]">{totalKm} km</p>
-              <p className="text-xs text-[#6B7280] mt-1">Distancia total</p>
-            </div>
-            <div className="card text-center">
-              <Clock size={18} className="text-[#7C3AED] mx-auto mb-2" />
-              <p className="text-xl font-semibold text-[#1A1D23]">{horas}h {minutos}m</p>
-              <p className="text-xs text-[#6B7280] mt-1">Tiempo estimado</p>
-            </div>
-            <div className="card text-center">
-              <Fuel size={18} className="text-[#7C3AED] mx-auto mb-2" />
-              <p className="text-xl font-semibold text-[#1A1D23]">${costoCombustible.toFixed(2)}</p>
-              <p className="text-xs text-[#6B7280] mt-1">{litros.toFixed(1)}L combustible</p>
-            </div>
-          </div>
-          <div className="card p-0 overflow-hidden">
-            <div ref={mapRef} className="w-full h-64" />
-          </div>
-        </>
       )}
     </div>
   )
