@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Trash2, MapPin, Clock, Fuel, Navigation, Plane, Car, Train, PersonStanding, Bike, Ship, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, MapPin, Clock, Navigation, Plane, Car, Train, PersonStanding, Bike, Ship, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 declare global { interface Window { google: any; initRoadMap: () => void } }
@@ -34,14 +34,24 @@ const MODOS = [
 function LugarInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const autoRef = useRef<any>(null)
+
   useEffect(() => {
-    if (!inputRef.current || !window.google || autoRef.current) return
-    autoRef.current = new window.google.maps.places.Autocomplete(inputRef.current, { types: ['geocode', 'establishment'] })
-    autoRef.current.addListener('place_changed', () => {
-      const place = autoRef.current.getPlace()
-      onChange(place?.formatted_address || place?.name || '')
-    })
-  }, [window.google])
+    if (!inputRef.current || autoRef.current) return
+    const tryInit = () => {
+      if (!window.google) return false
+      autoRef.current = new window.google.maps.places.Autocomplete(inputRef.current!, { types: ['geocode', 'establishment'] })
+      autoRef.current.addListener('place_changed', () => {
+        const place = autoRef.current.getPlace()
+        onChange(place?.formatted_address || place?.name || '')
+      })
+      return true
+    }
+    if (!tryInit()) {
+      const interval = setInterval(() => { if (tryInit()) clearInterval(interval) }, 500)
+      return () => clearInterval(interval)
+    }
+  }, [])
+
   return <input ref={inputRef} className="input" placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)} />
 }
 
@@ -50,7 +60,6 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   const [viajeId, setViajeId] = useState('')
   const [tramos, setTramos] = useState<Tramo[]>([])
   const [dias, setDias] = useState<Dia[]>([])
-  const [mapsLoaded, setMapsLoaded] = useState(false)
   const [calculando, setCalculando] = useState(false)
   const [consumo, setConsumo] = useState('8')
   const [precio, setPrecio] = useState('1.5')
@@ -64,15 +73,15 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
     if (!apiKey) return
-    if (window.google) { setMapsLoaded(true); return }
-    window.initRoadMap = () => setMapsLoaded(true)
+    if (window.google) return
+    window.initRoadMap = () => {}
     const existing = document.querySelector('script[src*="maps.googleapis.com"]')
     if (!existing) {
       const script = document.createElement('script')
       script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initRoadMap`
       script.async = true
       document.head.appendChild(script)
-    } else if (window.google) { setMapsLoaded(true) }
+    }
   }, [])
 
   async function loadDias(id: string) {
@@ -104,7 +113,6 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   async function calcularTramo(tramo: Tramo) {
     if (!tramo.origen || !tramo.destino || !window.google) return
     if (tramo.modo !== 'auto' && tramo.modo !== 'tren') {
-      // Para avion, barco, bici, caminando — usar distancia en linea recta
       const geocoder = new window.google.maps.Geocoder()
       const [r1, r2] = await Promise.all([
         new Promise<any>(res => geocoder.geocode({ address: tramo.origen }, (r: any) => res(r?.[0]))),
@@ -125,7 +133,6 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
       }
       return
     }
-
     const service = new window.google.maps.DirectionsService()
     service.route({
       origin: tramo.origen,
@@ -149,7 +156,7 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
       await new Promise(r => setTimeout(r, 300))
     }
     setCalculando(false)
-    if (mapRef.current && window.google && showMap) renderMapa()
+    if (showMap) renderMapa()
   }
 
   async function sincronizarConItinerario() {
@@ -168,9 +175,9 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   function renderMapa() {
     if (!mapRef.current || !window.google) return
     const map = new window.google.maps.Map(mapRef.current, { zoom: 5, center: { lat: 41.9, lng: 12.5 }, mapTypeControl: false })
-    const service = new window.google.maps.DirectionsService()
     const tramosAuto = tramos.filter(t => t.modo === 'auto' && t.origen && t.destino)
     if (tramosAuto.length > 0) {
+      const service = new window.google.maps.DirectionsService()
       const waypoints = tramosAuto.slice(1, -1).map(t => ({ location: t.origen, stopover: true }))
       service.route({
         origin: tramosAuto[0].origen,
@@ -188,8 +195,7 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
   function abrirEnMaps() {
     const lugares = [...new Set(tramos.flatMap(t => [t.origen, t.destino]).filter(Boolean))]
     if (lugares.length < 2) return
-    const url = `https://www.google.com/maps/dir/${lugares.map(encodeURIComponent).join('/')}`
-    window.open(url, '_blank')
+    window.open(`https://www.google.com/maps/dir/${lugares.map(encodeURIComponent).join('/')}`, '_blank')
   }
 
   const totalKm = tramos.reduce((a, t) => a + (t.distancia_km ?? 0), 0)
@@ -209,9 +215,8 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
         </div>
         <div className="flex gap-2">
           <button onClick={abrirEnMaps} className="btn-secondary"><Navigation size={14} /> Maps</button>
-          <button onClick={() => { setShowMap(s => !s); if (!showMap && mapsLoaded) setTimeout(renderMapa, 100) }}
-            className="btn-secondary">
-            <MapPin size={14} /> {showMap ? 'Ocultar' : 'Ver mapa'}
+          <button onClick={() => { setShowMap(s => !s); if (!showMap) setTimeout(renderMapa, 200) }} className="btn-secondary">
+            <MapPin size={14} /> {showMap ? 'Ocultar mapa' : 'Ver mapa'}
           </button>
         </div>
       </div>
@@ -254,17 +259,11 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Origen</label>
-                  {mapsLoaded
-                    ? <LugarInput value={tramo.origen} onChange={v => updateTramo(tramo.id, { origen: v })} placeholder="Ciudad de origen" />
-                    : <input className="input" placeholder="Ciudad de origen" value={tramo.origen} onChange={e => updateTramo(tramo.id, { origen: e.target.value })} />
-                  }
+                  <LugarInput value={tramo.origen} onChange={v => updateTramo(tramo.id, { origen: v })} placeholder="Ciudad de origen" />
                 </div>
                 <div>
                   <label className="label">Destino</label>
-                  {mapsLoaded
-                    ? <LugarInput value={tramo.destino} onChange={v => updateTramo(tramo.id, { destino: v })} placeholder="Ciudad de destino" />
-                    : <input className="input" placeholder="Ciudad de destino" value={tramo.destino} onChange={e => updateTramo(tramo.id, { destino: e.target.value })} />
-                  }
+                  <LugarInput value={tramo.destino} onChange={v => updateTramo(tramo.id, { destino: v })} placeholder="Ciudad de destino" />
                 </div>
               </div>
 
@@ -280,9 +279,7 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
                   <select className="select" value={tramo.dia_id ?? ''} onChange={e => updateTramo(tramo.id, { dia_id: e.target.value || null })}>
                     <option value="">Sin asociar</option>
                     {dias.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.ciudad || d.titulo || d.fecha}
-                      </option>
+                      <option key={d.id} value={d.id}>{d.ciudad || d.titulo || d.fecha}</option>
                     ))}
                   </select>
                 </div>
@@ -317,14 +314,14 @@ export default function RoadTripPage({ params }: { params: Promise<{ id: string 
       {totalKm > 0 && (
         <div className="card">
           <h3 className="text-sm font-medium text-[#1A1D23] mb-4">Resumen del viaje</h3>
-          <div className="space-y-3 mb-4">
+          <div className="space-y-2 mb-4">
             {tramos.map((tramo, idx) => {
               const ModoIcon = MODOS.find(m => m.value === tramo.modo)?.icon ?? Car
               return (
                 <div key={tramo.id} className="flex items-center gap-3">
                   <div className="flex flex-col items-center gap-0.5 shrink-0">
                     <div className={`w-2 h-2 rounded-full ${idx === 0 ? 'bg-green-500' : 'bg-[#7C3AED]'}`} />
-                    {idx < tramos.length - 1 && <div className="w-px h-6 bg-[#E8E9EC]" />}
+                    {idx < tramos.length - 1 && <div className="w-px h-5 bg-[#E8E9EC]" />}
                   </div>
                   <div className="flex-1">
                     <p className="text-xs font-medium text-[#1A1D23]">{tramo.origen}</p>
