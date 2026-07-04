@@ -195,7 +195,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
           <h3 className="text-sm font-medium text-[#1A1D23] mb-3">
             {tab === 'todos' ? 'Todos los gastos' : tab === 'estimado' ? 'Gastos estimados' : 'Gastos reales'}
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[500px] overflow-y-auto pr-1">
             {gastosFiltrados.length === 0 && <p className="text-[#6B7280] text-sm">Sin gastos en esta categoria</p>}
             {gastosFiltrados.map(gasto => {
               const cat = CATEGORIAS_GASTO.find(c => c.value === gasto.categoria)
