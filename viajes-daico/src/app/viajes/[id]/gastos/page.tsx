@@ -122,6 +122,21 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
+      {pieData.length > 0 && (
+        <div className="card">
+          <h3 className="text-sm font-medium text-[#1A1D23] mb-3">Por categoria</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
+                {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatMonto(v, moneda)} />
+              <Legend iconSize={10} iconType="circle" />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1 border border-[#E8E9EC] rounded-lg p-1">
           {(['todos', 'estimado', 'real'] as const).map(t => (
@@ -175,82 +190,66 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-5">
-        {pieData.length > 0 && (
-          <div className="card">
-            <h3 className="text-sm font-medium text-[#1A1D23] mb-3">Por categoria</h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80}>
-                  {pieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => formatMonto(v, moneda)} />
-                <Legend iconSize={10} iconType="circle" />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        <div className="card">
-          <h3 className="text-sm font-medium text-[#1A1D23] mb-3">
-            {tab === 'todos' ? 'Todos los gastos' : tab === 'estimado' ? 'Gastos estimados' : 'Gastos reales'}
-          </h3>
-          <div className="space-y-1 max-h-[500px] overflow-y-auto pr-1">
-            {gastosFiltrados.length === 0 && <p className="text-[#6B7280] text-sm">Sin gastos en esta categoria</p>}
-            {gastosFiltrados.map(gasto => {
-              const cat = CATEGORIAS_GASTO.find(c => c.value === gasto.categoria)
-              const tipo = (gasto as any).tipo
-              return (
-                <div key={gasto.id}>
-                  {editingId === gasto.id ? (
-                    <div className="py-2 border-b border-[#E8E9EC] space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div className="col-span-2">
-                          <input className="input text-xs py-1" value={editForm.descripcion}
-                            onChange={e => setEditForm(f => ({ ...f, descripcion: e.target.value }))} />
-                        </div>
-                        <input className="input text-xs py-1" type="number" step="0.01" value={editForm.monto}
-                          onChange={e => setEditForm(f => ({ ...f, monto: e.target.value }))} />
-                        <select className="select text-xs py-1" value={editForm.tipo}
-                          onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))}>
-                          <option value="estimado">📋 Estimado</option>
-                          <option value="real">✅ Real</option>
-                        </select>
-                        <select className="select text-xs py-1" value={editForm.categoria}
-                          onChange={e => setEditForm(f => ({ ...f, categoria: e.target.value }))}>
-                          {CATEGORIAS_GASTO.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                        </select>
-                        <input className="input text-xs py-1" type="date" value={editForm.fecha}
-                          onChange={e => setEditForm(f => ({ ...f, fecha: e.target.value }))} />
+      <div className="card">
+        <h3 className="text-sm font-medium text-[#1A1D23] mb-3">
+          {tab === 'todos' ? 'Todos los gastos' : tab === 'estimado' ? 'Gastos estimados' : 'Gastos reales'}
+          <span className="ml-2 text-xs text-[#9CA3AF] font-normal">({gastosFiltrados.length})</span>
+        </h3>
+        <div className="space-y-1">
+          {gastosFiltrados.length === 0 && <p className="text-[#6B7280] text-sm py-4 text-center">Sin gastos</p>}
+          {gastosFiltrados.map(gasto => {
+            const cat = CATEGORIAS_GASTO.find(c => c.value === gasto.categoria)
+            const tipo = (gasto as any).tipo
+            return (
+              <div key={gasto.id}>
+                {editingId === gasto.id ? (
+                  <div className="py-3 border-b border-[#E8E9EC] space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="col-span-2">
+                        <input className="input text-xs py-1" value={editForm.descripcion}
+                          onChange={e => setEditForm(f => ({ ...f, descripcion: e.target.value }))} />
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => saveEdit(gasto.id)} className="btn-primary text-xs px-3 py-1"><Check size={11} /> Guardar</button>
-                        <button onClick={() => setEditingId(null)} className="btn-secondary text-xs px-3 py-1"><X size={11} /> Cancelar</button>
-                      </div>
+                      <input className="input text-xs py-1" type="number" step="0.01" value={editForm.monto}
+                        onChange={e => setEditForm(f => ({ ...f, monto: e.target.value }))} />
+                      <select className="select text-xs py-1" value={editForm.tipo}
+                        onChange={e => setEditForm(f => ({ ...f, tipo: e.target.value }))}>
+                        <option value="estimado">📋 Estimado</option>
+                        <option value="real">✅ Real</option>
+                      </select>
+                      <select className="select text-xs py-1" value={editForm.categoria}
+                        onChange={e => setEditForm(f => ({ ...f, categoria: e.target.value }))}>
+                        {CATEGORIAS_GASTO.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                      </select>
+                      <input className="input text-xs py-1" type="date" value={editForm.fecha}
+                        onChange={e => setEditForm(f => ({ ...f, fecha: e.target.value }))} />
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-3 py-2 border-b border-[#E8E9EC] last:border-0 group">
-                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat?.color }} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs font-medium text-[#1A1D23] truncate">{gasto.descripcion}</p>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${tipo === 'estimado' ? 'bg-[#F4F5F7] text-[#6B7280]' : 'bg-green-100 text-green-700'}`}>
-                            {tipo === 'estimado' ? 'Est.' : 'Real'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-[#9CA3AF]">{formatFecha(gasto.fecha)} · {cat?.label}</p>
-                      </div>
-                      <p className="text-xs font-medium text-[#1A1D23]">{formatMonto(gasto.monto, moneda)}</p>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => startEdit(gasto)} className="text-[#9CA3AF] hover:text-[#7C3AED]"><Pencil size={12} /></button>
-                        <button onClick={() => deleteGasto(gasto.id)} className="text-[#9CA3AF] hover:text-red-500"><Trash2 size={12} /></button>
-                      </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => saveEdit(gasto.id)} className="btn-primary text-xs px-3 py-1"><Check size={11} /> Guardar</button>
+                      <button onClick={() => setEditingId(null)} className="btn-secondary text-xs px-3 py-1"><X size={11} /> Cancelar</button>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3 py-2.5 border-b border-[#E8E9EC] last:border-0 group">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: cat?.color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-medium text-[#1A1D23] truncate">{gasto.descripcion}</p>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded-full shrink-0 ${tipo === 'estimado' ? 'bg-[#F4F5F7] text-[#6B7280]' : 'bg-green-100 text-green-700'}`}>
+                          {tipo === 'estimado' ? 'Est.' : 'Real'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-[#9CA3AF]">{formatFecha(gasto.fecha)} · {cat?.label}</p>
+                    </div>
+                    <p className="text-xs font-semibold text-[#1A1D23]">{formatMonto(gasto.monto, moneda)}</p>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                      <button onClick={() => startEdit(gasto)} className="text-[#9CA3AF] hover:text-[#7C3AED]"><Pencil size={12} /></button>
+                      <button onClick={() => deleteGasto(gasto.id)} className="text-[#9CA3AF] hover:text-red-500"><Trash2 size={12} /></button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
