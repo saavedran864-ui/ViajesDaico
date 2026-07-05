@@ -33,13 +33,10 @@ export default function IAPage() {
     setLoading(true)
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
-          max_tokens: 1000,
-          system: 'Sos un asistente experto en viajes y planificacion de viajes. Ayudas a los usuarios a planificar itinerarios, dar consejos de viaje, informacion sobre destinos, presupuestos y todo lo relacionado con viajes. Respondé siempre en español de Argentina, de forma amigable y concisa.',
           messages: nuevosMensajes.map(m => ({ role: m.rol, content: m.contenido })),
         }),
       })
@@ -85,7 +82,7 @@ export default function IAPage() {
                 <Sparkles size={13} className="text-[#7C3AED]" />
               </div>
             )}
-            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
+            <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 leading-relaxed ${
               msg.rol === 'user'
                 ? 'bg-[#7C3AED] text-white rounded-tr-sm'
                 : 'bg-white border border-[#E8E9EC] text-[#1A1D23] rounded-tl-sm shadow-sm'
