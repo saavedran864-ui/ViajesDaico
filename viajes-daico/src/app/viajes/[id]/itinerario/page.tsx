@@ -42,6 +42,11 @@ const MODOS_TRANSPORTE = [
   { value: 'barco', label: 'Barco', icon: Ship },
 ]
 
+function safeFecha(fecha: string | null | undefined, formato: string) {
+  if (!fecha) return '—'
+  try { return formatFecha(fecha, formato) } catch { return '—' }
+}
+
 function UbicacionInput({ value, onChange, placeholder = 'Ej: Coliseo, Roma' }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteRef = useRef<any>(null)
@@ -246,7 +251,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
     if (!viajeId || !newDiaFecha) return
     const { data } = await supabase.from('dias').insert({ viaje_id: viajeId, fecha: newDiaFecha, orden: dias.length }).select().single()
     if (data) {
-      setDias(d => [...d, { ...data, titulo: null, ciudad: null, distancia_desde_anterior: null, tiempo_desde_anterior: null, modo_transporte: 'auto', actividades: [], recomendaciones: [] }].sort((a, b) => a.fecha.localeCompare(b.fecha)))
+      setDias(d => [...d, { ...data, titulo: null, ciudad: null, distancia_desde_anterior: null, tiempo_desde_anterior: null, modo_transporte: 'auto', actividades: [], recomendaciones: [] }].sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '')))
       setExpanded(e => ({ ...e, [data.id]: true }))
       setActiveTab(t => ({ ...t, [data.id]: 'actividades' }))
       setShowDiaForm(false); setNewDiaFecha('')
@@ -256,7 +261,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
   function startEditDia(dia: DiaExtendido) {
     setEditingDia(dia.id)
     setEditDia({
-      fecha: dia.fecha, titulo: dia.titulo ?? '', ciudad: dia.ciudad ?? '',
+      fecha: dia.fecha ?? '', titulo: dia.titulo ?? '', ciudad: dia.ciudad ?? '',
       distancia: dia.distancia_desde_anterior?.toString() ?? '',
       tiempo: dia.tiempo_desde_anterior?.toString() ?? '',
       modo: dia.modo_transporte ?? 'auto',
@@ -265,17 +270,17 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
 
   async function saveDia(diaId: string) {
     await supabase.from('dias').update({
-      fecha: editDia.fecha, titulo: editDia.titulo || null, ciudad: editDia.ciudad || null,
+      fecha: editDia.fecha || null, titulo: editDia.titulo || null, ciudad: editDia.ciudad || null,
       distancia_desde_anterior: editDia.distancia ? parseFloat(editDia.distancia) : null,
       tiempo_desde_anterior: editDia.tiempo ? parseInt(editDia.tiempo) : null,
       modo_transporte: editDia.modo,
     }).eq('id', diaId)
     setDias(ds => ds.map(d => d.id === diaId ? {
-      ...d, fecha: editDia.fecha, titulo: editDia.titulo || null, ciudad: editDia.ciudad || null,
+      ...d, fecha: editDia.fecha || d.fecha, titulo: editDia.titulo || null, ciudad: editDia.ciudad || null,
       distancia_desde_anterior: editDia.distancia ? parseFloat(editDia.distancia) : null,
       tiempo_desde_anterior: editDia.tiempo ? parseInt(editDia.tiempo) : null,
       modo_transporte: editDia.modo,
-    } : d).sort((a, b) => a.fecha.localeCompare(b.fecha)))
+    } : d).sort((a, b) => (a.fecha ?? '').localeCompare(b.fecha ?? '')))
     setEditingDia(null)
   }
 
@@ -434,10 +439,10 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[#1A1D23]">{dia.titulo || formatFecha(dia.fecha, "EEEE d 'de' MMMM")}</p>
+                      <p className="text-sm font-medium text-[#1A1D23]">{dia.titulo || safeFecha(dia.fecha, "EEEE d 'de' MMMM")}</p>
                       {dia.ciudad && <span className="text-xs px-2 py-0.5 bg-[#EDE9FE] text-[#7C3AED] rounded-full">{dia.ciudad}</span>}
                     </div>
-                    <p className="text-xs text-[#6B7280]">{dia.titulo ? formatFecha(dia.fecha, "d 'de' MMMM") + ' · ' : ''}{dia.actividades.length} actividades · {dia.recomendaciones.length} recomendaciones</p>
+                    <p className="text-xs text-[#6B7280]">{dia.titulo && dia.fecha ? safeFecha(dia.fecha, "d 'de' MMMM") + ' · ' : ''}{dia.actividades.length} actividades · {dia.recomendaciones.length} recomendaciones</p>
                   </>
                 )}
               </div>
