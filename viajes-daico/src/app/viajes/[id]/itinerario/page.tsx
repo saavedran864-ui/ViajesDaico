@@ -70,29 +70,31 @@ function SortableActividad({ act, diaId, editingAct, editActForm, setEditActForm
     <div ref={setNodeRef} style={style}>
       {editingAct === act.id ? (
         <form onSubmit={e => saveEditAct(e, diaId, act.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
+          <div className="space-y-2">
+            <div>
               <label className="label">Actividad *</label>
               <input className="input" value={editActForm.nombre} onChange={e => setEditActForm((f: any) => ({ ...f, nombre: e.target.value }))} required />
             </div>
-            <div>
-              <label className="label">Hora</label>
-              <input className="input" type="time" value={editActForm.hora} onChange={e => setEditActForm((f: any) => ({ ...f, hora: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label">Hora</label>
+                <input className="input" type="time" value={editActForm.hora} onChange={e => setEditActForm((f: any) => ({ ...f, hora: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Categoria</label>
+                <select className="select" value={editActForm.categoria} onChange={e => setEditActForm((f: any) => ({ ...f, categoria: e.target.value }))}>
+                  {CATEGORIAS_ACTIVIDAD.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="label">Categoria</label>
-              <select className="select" value={editActForm.categoria} onChange={e => setEditActForm((f: any) => ({ ...f, categoria: e.target.value }))}>
-                {CATEGORIAS_ACTIVIDAD.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-            </div>
-            <div className="col-span-2">
               <label className="label">Ubicacion</label>
               {mapsLoaded
                 ? <UbicacionInput value={editActForm.ubicacion} onChange={(v: string) => setEditActForm((f: any) => ({ ...f, ubicacion: v }))} />
                 : <input className="input" value={editActForm.ubicacion} onChange={e => setEditActForm((f: any) => ({ ...f, ubicacion: e.target.value }))} />
               }
             </div>
-            <div className="col-span-2">
+            <div>
               <label className="label">Notas</label>
               <input className="input" value={editActForm.notas} onChange={e => setEditActForm((f: any) => ({ ...f, notas: e.target.value }))} />
             </div>
@@ -103,28 +105,33 @@ function SortableActividad({ act, diaId, editingAct, editActForm, setEditActForm
           </div>
         </form>
       ) : (
-        <div className="flex items-start gap-2 p-3 bg-[#F4F5F7] rounded-xl group">
-          <button {...attributes} {...listeners} className="text-[#D1D5DB] hover:text-[#9CA3AF] cursor-grab active:cursor-grabbing mt-0.5 shrink-0">
+        <div className="flex items-start gap-2 p-3 bg-[#F4F5F7] rounded-xl">
+          <button {...attributes} {...listeners} className="text-[#D1D5DB] cursor-grab active:cursor-grabbing mt-0.5 shrink-0 touch-none">
             <GripVertical size={14} />
           </button>
-          {act.hora && <span className="text-[11px] text-[#9CA3AF] font-mono mt-0.5 w-10 shrink-0">{act.hora}</span>}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[#1A1D23]">{act.nombre}</p>
-            {act.ubicacion && (
-              <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.ubicacion)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="text-xs text-[#7C3AED] hover:underline flex items-center gap-1 mt-0.5">
-                <MapPin size={10} /> {act.ubicacion}
-              </a>
-            )}
-            {act.notas && <p className="text-xs text-[#9CA3AF] mt-0.5 italic">{act.notas}</p>}
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#6B7280] border border-[#E8E9EC] shrink-0">
-            {CATEGORIAS_ACTIVIDAD.find(c => c.value === act.categoria)?.label}
-          </span>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-            <button onClick={() => startEditAct(act)} className="text-[#9CA3AF] hover:text-[#7C3AED]"><Pencil size={12} /></button>
-            <button onClick={() => deleteActividad(diaId, act.id)} className="text-[#9CA3AF] hover:text-red-500"><Trash2 size={12} /></button>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                {act.hora && <span className="text-[10px] text-[#9CA3AF] font-mono block mb-0.5">{act.hora}</span>}
+                <p className="text-sm font-medium text-[#1A1D23] leading-snug">{act.nombre}</p>
+                {act.ubicacion && (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(act.ubicacion)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-[#7C3AED] flex items-center gap-1 mt-0.5">
+                    <MapPin size={10} className="shrink-0" />
+                    <span className="truncate">{act.ubicacion}</span>
+                  </a>
+                )}
+                {act.notas && <p className="text-xs text-[#9CA3AF] mt-0.5 italic leading-snug">{act.notas}</p>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => startEditAct(act)} className="text-[#9CA3AF] hover:text-[#7C3AED] p-1"><Pencil size={13} /></button>
+                <button onClick={() => deleteActividad(diaId, act.id)} className="text-[#9CA3AF] hover:text-red-500 p-1"><Trash2 size={13} /></button>
+              </div>
+            </div>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-[#6B7280] border border-[#E8E9EC] inline-block mt-1">
+              {CATEGORIAS_ACTIVIDAD.find(c => c.value === act.categoria)?.label}
+            </span>
           </div>
         </div>
       )}
@@ -348,63 +355,59 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
   if (loading) return <div className="text-[#6B7280] text-sm">Cargando...</div>
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl space-y-3">
       <div className="flex gap-2">
-        <button onClick={() => setShowDiaForm(s => !s)} className="btn-primary"><Plus size={15} /> Agregar dia</button>
-        <button onClick={() => setShowMap(s => !s)} className={`btn-secondary ${showMap ? 'bg-[#EDE9FE] text-[#7C3AED]' : ''}`}>
-          <Map size={15} /> {showMap ? 'Ocultar mapa' : 'Ver mapa'}
+        <button onClick={() => setShowDiaForm(s => !s)} className="btn-primary text-xs px-3 py-2"><Plus size={14} /> Agregar dia</button>
+        <button onClick={() => setShowMap(s => !s)} className={`btn-secondary text-xs px-3 py-2 ${showMap ? 'bg-[#EDE9FE] text-[#7C3AED]' : ''}`}>
+          <Map size={14} /> {showMap ? 'Ocultar mapa' : 'Ver mapa'}
         </button>
       </div>
 
       {showMap && (
         <div className="card p-0 overflow-hidden">
-          <p className="text-xs text-[#6B7280] px-4 py-2 border-b border-[#E8E9EC]">Podas arrastrar los marcadores para ajustar la ubicacion</p>
-          <div ref={mapRef} className="w-full h-72" />
+          <p className="text-xs text-[#6B7280] px-3 py-2 border-b border-[#E8E9EC]">Arrastra los marcadores para ajustar</p>
+          <div ref={mapRef} className="w-full h-56" />
         </div>
       )}
 
       {showDiaForm && (
         <div className="card">
-          <form onSubmit={addDia} className="flex gap-3 items-end">
+          <form onSubmit={addDia} className="flex gap-2 items-end">
             <div className="flex-1">
-              <label className="label">Fecha del dia</label>
+              <label className="label">Fecha</label>
               <input className="input" type="date" value={newDiaFecha} onChange={e => setNewDiaFecha(e.target.value)} required />
             </div>
-            <button type="submit" className="btn-primary">Agregar</button>
-            <button type="button" onClick={() => setShowDiaForm(false)} className="btn-secondary">Cancelar</button>
+            <button type="submit" className="btn-primary text-xs px-3 py-2">Agregar</button>
+            <button type="button" onClick={() => setShowDiaForm(false)} className="btn-secondary text-xs px-3 py-2">X</button>
           </form>
         </div>
       )}
 
       {dias.length === 0 ? (
-        <div className="card text-center py-12"><p className="text-[#6B7280] text-sm">Sin dias en el itinerario</p></div>
+        <div className="card text-center py-10"><p className="text-[#6B7280] text-sm">Sin dias en el itinerario</p></div>
       ) : dias.map((dia, idx) => (
         <div key={dia.id}>
           {idx > 0 && (dia.distancia_desde_anterior || dia.modo_transporte) && (
-            <div className="flex items-center gap-2 px-4 py-1.5 mx-4">
+            <div className="flex items-center gap-2 py-1.5">
               <div className="flex-1 h-px bg-[#E8E9EC]" />
-              <div className="flex items-center gap-1.5 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-full px-3 py-1">
-                {(() => {
-                  const modo = MODOS_TRANSPORTE.find(m => m.value === dia.modo_transporte)
-                  const Icon = modo?.icon ?? Car
-                  return <Icon size={11} className="text-[#7C3AED]" />
-                })()}
-                {dia.modo_transporte && <span className="capitalize">{dia.modo_transporte}</span>}
-                {dia.distancia_desde_anterior && <span>· {dia.distancia_desde_anterior} km</span>}
-                {dia.tiempo_desde_anterior && <span>· {Math.floor(dia.tiempo_desde_anterior / 60)}h {dia.tiempo_desde_anterior % 60}m</span>}
+              <div className="flex items-center gap-1 text-xs text-[#6B7280] bg-[#F4F5F7] rounded-full px-2.5 py-1">
+                {(() => { const modo = MODOS_TRANSPORTE.find(m => m.value === dia.modo_transporte); const Icon = modo?.icon ?? Car; return <Icon size={10} className="text-[#7C3AED]" /> })()}
+                <span className="capitalize">{dia.modo_transporte}</span>
+                {dia.distancia_desde_anterior && <span>· {dia.distancia_desde_anterior}km</span>}
+                {dia.tiempo_desde_anterior && <span>· {Math.floor(dia.tiempo_desde_anterior / 60)}h{dia.tiempo_desde_anterior % 60}m</span>}
               </div>
               <div className="flex-1 h-px bg-[#E8E9EC]" />
             </div>
           )}
 
-          <div className="card">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#EDE9FE] flex items-center justify-center shrink-0">
-                <span className="text-xs font-semibold text-[#7C3AED]">D{idx + 1}</span>
+          <div className="card p-3">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-[#EDE9FE] flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-semibold text-[#7C3AED]">D{idx + 1}</span>
               </div>
-              <div className="flex-1 cursor-pointer" onClick={() => !editingDia && setExpanded(e => ({ ...e, [dia.id]: !e[dia.id] }))}>
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={() => !editingDia && setExpanded(e => ({ ...e, [dia.id]: !e[dia.id] }))}>
                 {editingDia === dia.id ? (
-                  <div className="flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                  <div className="space-y-2" onClick={e => e.stopPropagation()}>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="label">Fecha</label>
@@ -412,7 +415,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                       </div>
                       <div>
                         <label className="label">Ciudad</label>
-                        <input className="input py-1 text-xs" placeholder="Ej: Roma" value={editDia.ciudad} onChange={e => setEditDia(f => ({ ...f, ciudad: e.target.value }))} />
+                        <input className="input py-1 text-xs" placeholder="Roma" value={editDia.ciudad} onChange={e => setEditDia(f => ({ ...f, ciudad: e.target.value }))} />
                       </div>
                     </div>
                     <div>
@@ -422,7 +425,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                     {idx > 0 && (
                       <div>
                         <label className="label">Desde ciudad anterior</label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-3 gap-1.5">
                           <select className="select text-xs py-1" value={editDia.modo} onChange={e => setEditDia(f => ({ ...f, modo: e.target.value }))}>
                             {MODOS_TRANSPORTE.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                           </select>
@@ -432,29 +435,29 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                       </div>
                     )}
                     <div className="flex gap-2">
-                      <button onClick={() => saveDia(dia.id)} className="btn-primary text-xs px-3 py-1"><Check size={12} /> Guardar</button>
-                      <button onClick={() => setEditingDia(null)} className="btn-secondary text-xs px-3 py-1"><X size={12} /> Cancelar</button>
+                      <button onClick={() => saveDia(dia.id)} className="btn-primary text-xs px-3 py-1.5"><Check size={11} /> Guardar</button>
+                      <button onClick={() => setEditingDia(null)} className="btn-secondary text-xs px-3 py-1.5"><X size={11} /> Cancelar</button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-[#1A1D23]">{dia.titulo || safeFecha(dia.fecha, "EEEE d 'de' MMMM")}</p>
-                      {dia.ciudad && <span className="text-xs px-2 py-0.5 bg-[#EDE9FE] text-[#7C3AED] rounded-full">{dia.ciudad}</span>}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm font-medium text-[#1A1D23] leading-tight">{dia.titulo || safeFecha(dia.fecha, "EEE d 'de' MMM")}</p>
+                      {dia.ciudad && <span className="text-[10px] px-1.5 py-0.5 bg-[#EDE9FE] text-[#7C3AED] rounded-full">{dia.ciudad}</span>}
                     </div>
-                    <p className="text-xs text-[#6B7280]">{dia.titulo && dia.fecha ? safeFecha(dia.fecha, "d 'de' MMMM") + ' · ' : ''}{dia.actividades.length} actividades · {dia.recomendaciones.length} recomendaciones</p>
+                    <p className="text-[10px] text-[#6B7280] mt-0.5">{dia.actividades.length} act. · {dia.recomendaciones.length} recomendaciones</p>
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => startEditDia(dia)} className="text-[#9CA3AF] hover:text-[#7C3AED] p-1"><Pencil size={12} /></button>
-                <button onClick={() => deleteDia(dia.id)} className="text-[#9CA3AF] hover:text-red-500 p-1"><Trash2 size={13} /></button>
-                {expanded[dia.id] ? <ChevronDown size={15} className="text-[#9CA3AF]" /> : <ChevronRight size={15} className="text-[#9CA3AF]" />}
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button onClick={() => startEditDia(dia)} className="text-[#9CA3AF] p-1.5"><Pencil size={12} /></button>
+                <button onClick={() => deleteDia(dia.id)} className="text-[#9CA3AF] p-1.5"><Trash2 size={12} /></button>
+                {expanded[dia.id] ? <ChevronDown size={14} className="text-[#9CA3AF]" /> : <ChevronRight size={14} className="text-[#9CA3AF]" />}
               </div>
             </div>
 
             {expanded[dia.id] && (
-              <div className="mt-4 pl-11">
+              <div className="mt-3">
                 <div className="flex gap-1 mb-3 border-b border-[#E8E9EC]">
                   <button onClick={() => setActiveTab(t => ({ ...t, [dia.id]: 'actividades' }))}
                     className={`text-xs px-3 py-1.5 border-b-2 transition-all font-medium ${activeTab[dia.id] === 'actividades' ? 'border-[#7C3AED] text-[#7C3AED]' : 'border-transparent text-[#9CA3AF]'}`}>
@@ -462,7 +465,7 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                   </button>
                   <button onClick={() => setActiveTab(t => ({ ...t, [dia.id]: 'recomendaciones' }))}
                     className={`text-xs px-3 py-1.5 border-b-2 transition-all font-medium flex items-center gap-1 ${activeTab[dia.id] === 'recomendaciones' ? 'border-[#7C3AED] text-[#7C3AED]' : 'border-transparent text-[#9CA3AF]'}`}>
-                    <Utensils size={11} /> Donde comer
+                    <Utensils size={10} /> Donde comer
                     {dia.recomendaciones.length > 0 && <span className="bg-[#EDE9FE] text-[#7C3AED] text-[9px] px-1.5 py-0.5 rounded-full">{dia.recomendaciones.length}</span>}
                   </button>
                 </div>
@@ -473,29 +476,23 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                       <SortableContext items={dia.actividades.map(a => a.id)} strategy={verticalListSortingStrategy}>
                         {dia.actividades.map(act => (
                           <SortableActividad
-                            key={act.id}
-                            act={act}
-                            diaId={dia.id}
-                            editingAct={editingAct}
-                            editActForm={editActForm}
-                            setEditActForm={setEditActForm}
-                            startEditAct={startEditAct}
-                            saveEditAct={saveEditAct}
-                            deleteActividad={deleteActividad}
-                            mapsLoaded={mapsLoaded}
-                            setEditingAct={setEditingAct}
+                            key={act.id} act={act} diaId={dia.id}
+                            editingAct={editingAct} editActForm={editActForm}
+                            setEditActForm={setEditActForm} startEditAct={startEditAct}
+                            saveEditAct={saveEditAct} deleteActividad={deleteActividad}
+                            mapsLoaded={mapsLoaded} setEditingAct={setEditingAct}
                           />
                         ))}
                       </SortableContext>
                     </DndContext>
                     {showActForm === dia.id ? (
-                      <form onSubmit={e => addActividad(e, dia.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="col-span-2">
-                            <label className="label">Actividad *</label>
-                            <input className="input" placeholder="Ej: Visita al Coliseo"
-                              value={actForm.nombre} onChange={e => setActForm(f => ({ ...f, nombre: e.target.value }))} required />
-                          </div>
+                      <form onSubmit={e => addActividad(e, dia.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-2">
+                        <div>
+                          <label className="label">Actividad *</label>
+                          <input className="input" placeholder="Ej: Visita al Coliseo"
+                            value={actForm.nombre} onChange={e => setActForm(f => ({ ...f, nombre: e.target.value }))} required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="label">Hora</label>
                             <input className="input" type="time" value={actForm.hora} onChange={e => setActForm(f => ({ ...f, hora: e.target.value }))} />
@@ -506,22 +503,22 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                               {CATEGORIAS_ACTIVIDAD.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                             </select>
                           </div>
-                          <div className="col-span-2">
-                            <label className="label">Ubicacion</label>
-                            {mapsLoaded
-                              ? <UbicacionInput value={actForm.ubicacion} onChange={v => setActForm(f => ({ ...f, ubicacion: v }))} />
-                              : <input className="input" placeholder="Ej: Coliseo, Roma" value={actForm.ubicacion} onChange={e => setActForm(f => ({ ...f, ubicacion: e.target.value }))} />
-                            }
-                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div>
+                          <label className="label">Ubicacion</label>
+                          {mapsLoaded
+                            ? <UbicacionInput value={actForm.ubicacion} onChange={v => setActForm(f => ({ ...f, ubicacion: v }))} />
+                            : <input className="input" placeholder="Ej: Coliseo, Roma" value={actForm.ubicacion} onChange={e => setActForm(f => ({ ...f, ubicacion: e.target.value }))} />
+                          }
+                        </div>
+                        <div className="flex gap-2 pt-1">
                           <button type="submit" className="btn-primary text-xs px-3 py-1.5">Guardar</button>
                           <button type="button" onClick={() => setShowActForm(null)} className="btn-secondary text-xs px-3 py-1.5">Cancelar</button>
                         </div>
                       </form>
                     ) : (
                       <button onClick={() => setShowActForm(dia.id)}
-                        className="flex items-center gap-2 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors py-1">
+                        className="flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors py-1">
                         <Plus size={13} /> Agregar actividad
                       </button>
                     )}
@@ -530,34 +527,33 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                   <div className="space-y-2">
                     {dia.recomendaciones.length === 0 && <p className="text-xs text-[#9CA3AF] italic py-2">Sin recomendaciones.</p>}
                     {dia.recomendaciones.map(reco => (
-                      <div key={reco.id} className="flex items-start gap-3 p-3 bg-[#F4F5F7] rounded-xl group">
-                        <Utensils size={14} className="text-[#7C3AED] mt-0.5 shrink-0" />
+                      <div key={reco.id} className="flex items-start gap-2 p-3 bg-[#F4F5F7] rounded-xl">
+                        <Utensils size={13} className="text-[#7C3AED] mt-0.5 shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-[#1A1D23]">{reco.nombre}</p>
+                          <p className="text-sm font-medium text-[#1A1D23] leading-snug">{reco.nombre}</p>
                           <p className="text-[10px] text-[#9CA3AF] mt-0.5">{TIPOS_RECO.find(t => t.value === reco.tipo)?.label}</p>
                           {reco.ubicacion && (
                             <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(reco.ubicacion)}`}
                               target="_blank" rel="noopener noreferrer"
-                              className="text-xs text-[#7C3AED] hover:underline flex items-center gap-1 mt-0.5">
-                              <MapPin size={10} /> {reco.ubicacion}
+                              className="text-xs text-[#7C3AED] flex items-center gap-1 mt-0.5">
+                              <MapPin size={10} className="shrink-0" /><span className="truncate">{reco.ubicacion}</span>
                             </a>
                           )}
                           {reco.notas && <p className="text-xs text-[#9CA3AF] mt-1 italic">{reco.notas}</p>}
                         </div>
-                        <button onClick={() => deleteRecomendacion(dia.id, reco.id)}
-                          className="opacity-0 group-hover:opacity-100 text-[#9CA3AF] hover:text-red-500 transition-all shrink-0">
+                        <button onClick={() => deleteRecomendacion(dia.id, reco.id)} className="text-[#9CA3AF] hover:text-red-500 shrink-0 p-1">
                           <Trash2 size={12} />
                         </button>
                       </div>
                     ))}
                     {showRecoForm === dia.id ? (
-                      <form onSubmit={e => addRecomendacion(e, dia.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-3">
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="col-span-2">
-                            <label className="label">Nombre del lugar *</label>
-                            <input className="input" placeholder="Ej: Trattoria da Mario"
-                              value={recoForm.nombre} onChange={e => setRecoForm(f => ({ ...f, nombre: e.target.value }))} required />
-                          </div>
+                      <form onSubmit={e => addRecomendacion(e, dia.id)} className="p-3 bg-[#F4F5F7] rounded-xl space-y-2">
+                        <div>
+                          <label className="label">Nombre del lugar *</label>
+                          <input className="input" placeholder="Ej: Trattoria da Mario"
+                            value={recoForm.nombre} onChange={e => setRecoForm(f => ({ ...f, nombre: e.target.value }))} required />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="label">Tipo</label>
                             <select className="select" value={recoForm.tipo} onChange={e => setRecoForm(f => ({ ...f, tipo: e.target.value }))}>
@@ -567,24 +563,24 @@ export default function ItinerarioPage({ params }: { params: Promise<{ id: strin
                           <div>
                             <label className="label">Ubicacion</label>
                             {mapsLoaded
-                              ? <UbicacionInput value={recoForm.ubicacion} onChange={v => setRecoForm(f => ({ ...f, ubicacion: v }))} placeholder="Via Roma 123, Roma" />
-                              : <input className="input" placeholder="Via Roma 123, Roma" value={recoForm.ubicacion} onChange={e => setRecoForm(f => ({ ...f, ubicacion: e.target.value }))} />
+                              ? <UbicacionInput value={recoForm.ubicacion} onChange={v => setRecoForm(f => ({ ...f, ubicacion: v }))} placeholder="Roma" />
+                              : <input className="input" placeholder="Roma" value={recoForm.ubicacion} onChange={e => setRecoForm(f => ({ ...f, ubicacion: e.target.value }))} />
                             }
                           </div>
-                          <div className="col-span-2">
-                            <label className="label">Notas</label>
-                            <input className="input" placeholder="Ej: Reservar con anticipacion"
-                              value={recoForm.notas} onChange={e => setRecoForm(f => ({ ...f, notas: e.target.value }))} />
-                          </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div>
+                          <label className="label">Notas</label>
+                          <input className="input" placeholder="Ej: Reservar con anticipacion"
+                            value={recoForm.notas} onChange={e => setRecoForm(f => ({ ...f, notas: e.target.value }))} />
+                        </div>
+                        <div className="flex gap-2 pt-1">
                           <button type="submit" className="btn-primary text-xs px-3 py-1.5">Guardar</button>
                           <button type="button" onClick={() => setShowRecoForm(null)} className="btn-secondary text-xs px-3 py-1.5">Cancelar</button>
                         </div>
                       </form>
                     ) : (
                       <button onClick={() => setShowRecoForm(dia.id)}
-                        className="flex items-center gap-2 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors py-1">
+                        className="flex items-center gap-1.5 text-xs text-[#9CA3AF] hover:text-[#7C3AED] transition-colors py-1">
                         <Plus size={13} /> Agregar recomendacion
                       </button>
                     )}
