@@ -61,7 +61,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
       descripcion: gasto.descripcion,
       monto: gasto.monto.toString(),
       categoria: gasto.categoria,
-      fecha: gasto.fecha,
+      fecha: gasto.fecha ?? '',
       tipo: (gasto as any).tipo ?? 'real',
     })
   }
@@ -71,7 +71,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
       descripcion: editForm.descripcion,
       monto: parseFloat(editForm.monto),
       categoria: editForm.categoria as Gasto['categoria'],
-      fecha: editForm.fecha,
+      fecha: editForm.fecha || null,
       tipo: editForm.tipo,
     } as any).eq('id', id).select().single()
     if (data) {
@@ -238,7 +238,7 @@ export default function GastosPage({ params }: { params: Promise<{ id: string }>
                           {tipo === 'estimado' ? 'Est.' : 'Real'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-[#9CA3AF]">{formatFecha(gasto.fecha)} · {cat?.label}</p>
+                      <p className="text-[10px] text-[#9CA3AF]">{gasto.fecha ? formatFecha(gasto.fecha) : '—'} · {cat?.label}</p>
                     </div>
                     <p className="text-xs font-semibold text-[#1A1D23]">{formatMonto(gasto.monto, moneda)}</p>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
